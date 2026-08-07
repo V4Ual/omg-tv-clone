@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>OmgTime - Live Video Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#070a12" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OmgTime" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="app-wrapper">
+    <!-- Top Glass Navbar -->
+    <header class="navbar">
+      <div class="logo-group">
+        <div class="logo-icon-bg">
+          <span class="logo-icon">⚡</span>
+        </div>
+        <span class="logo-title">OmgTime<span class="logo-accent">.live</span></span>
+      </div>
+
+      <div class="header-right">
+        <button class="pwa-install-btn" id="installBtn" style="display: none;">
+          <span>📲 Install App</span>
+        </button>
+
+        <div class="online-badge">
+          <span class="pulse-green"></span>
+          <span id="onlineCount">1 Online</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main class="viewport">
+      <!-- Remote Partner Stream Card -->
+      <div class="video-card remote-card" id="remoteCard">
+        <video id="remoteVideo" autoplay playsinline webkit-playsinline></video>
+        
+        <!-- Placeholder / Waiting state -->
+        <div class="video-placeholder" id="remotePlaceholder">
+          <div class="radar-container">
+            <div class="radar-ring r1"></div>
+            <div class="radar-ring r2"></div>
+            <div class="radar-center">
+              <span class="radar-icon">🌐</span>
+            </div>
+          </div>
+          <h2 class="placeholder-heading" id="placeholderHeading">Ready for Random Match?</h2>
+          <p class="placeholder-desc" id="placeholderText">Click <strong>"Start Matching"</strong> below to connect with new people!</p>
+        </div>
+
+        <!-- Connected Partner Tag -->
+        <div class="partner-tag" id="partnerTag" style="display: none;">
+          <span class="tag-dot"></span>
+          <span>Connected to Stranger</span>
+        </div>
+
+        <!-- Remote Camera Off Banner -->
+        <div class="cam-off-overlay" id="remoteCamOff" style="display: none;">
+          <div class="cam-off-avatar">📷</div>
+          <p class="cam-off-title">Partner's camera is off</p>
+        </div>
+      </div>
+
+      <!-- Floating Local Self Preview (PiP) -->
+      <div class="video-card local-card" id="localCard">
+        <video id="localVideo" autoplay playsinline webkit-playsinline muted></video>
+        <div class="cam-off-overlay local-off" id="localCamOff" style="display: none;">
+          <span>📷 Camera Off</span>
+        </div>
+        <div class="local-label">
+          <span class="user-badge-dot"></span> You
+        </div>
+      </div>
+    </main>
+
+    <!-- Floating Dock Controls Bar -->
+    <footer class="controls-dock">
+      <div class="controls-inner">
+        <button class="btn btn-primary" id="startBtn">
+          <span class="btn-icon">✨</span>
+          <span>Start Matching</span>
+        </button>
+
+        <button class="btn btn-warning" id="nextBtn" disabled>
+          <span class="btn-icon">⚡</span>
+          <span>Next Partner</span>
+        </button>
+
+        <div class="divider-line"></div>
+
+        <div class="media-toggles">
+          <button class="icon-btn" id="micBtn" title="Mic On/Off">
+            <span id="micIcon">🎙️</span>
+          </button>
+          <button class="icon-btn" id="camBtn" title="Camera On/Off">
+            <span id="camIcon">📹</span>
+          </button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
