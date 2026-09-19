@@ -20,6 +20,17 @@ const viewport = document.querySelector('.viewport');
 const quickReactions = document.getElementById('quickReactions');
 const reactionsContainer = document.getElementById('reactionsContainer');
 
+// Permission Modal Elements
+const permissionModal = document.getElementById('permissionModal');
+const permissionModalTitle = document.getElementById('permissionModalTitle');
+const permissionModalSubtitle = document.getElementById('permissionModalSubtitle');
+const permissionErrorMsg = document.getElementById('permissionErrorMsg');
+const retryPermissionBtn = document.getElementById('retryPermissionBtn');
+const dismissPermissionBtn = document.getElementById('dismissPermissionBtn');
+const closePermissionModal = document.getElementById('closePermissionModal');
+const localCamPrompt = document.getElementById('localCamPrompt');
+const inAppBrowserHint = document.getElementById('inAppBrowserHint');
+
 let localStream = null;
 let peerConnection = null;
 let currentPartnerId = null;
@@ -74,45 +85,220 @@ if (quickReactions) {
   });
 }
 
-// Initialize Camera & Microphone with Mobile & Desktop Fallbacks
-async function initLocalMedia() {
-  if (localStream) return localStream;
+// In-App Browser Detection
+function isInAppBrowser() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+  return /FBAN|FBAV|Instagram|Line|Twitter|MicroMessenger|Snapchat|Bytedance|TikTok/i.test(ua);
+}
 
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    console.error('[Media Error] Camera permission requires HTTPS or Localhost on mobile browsers!');
-    alert('⚠️ Liveza Security Notice:\n\nCamera & Microphone access requires HTTPS connection on mobile devices or localhost.\n\n(If testing locally across devices, please use HTTPS or a tunnel service).');
-    return null;
+// Permission Modal Controls
+function showPermissionModal({ title, subtitle, errorMsg } = {}) {
+  if (permissionModalTitle && title) permissionModalTitle.textContent = title;
+  if (permissionModalSubtitle && subtitle) permissionModalSubtitle.textContent = subtitle;
+  if (permissionErrorMsg && errorMsg) permissionErrorMsg.textContent = errorMsg;
+  if (inAppBrowserHint) {
+    inAppBrowserHint.style.display = isInAppBrowser() ? 'flex' : 'none';
   }
-
-  // Mobile & Desktop friendly video constraint list
-  const constraintOptions = [
-    { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: true },
-    { video: { facingMode: 'user' }, audio: true },
-    { video: true, audio: true }
-  ];
-
-  for (const constraints of constraintOptions) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('[Media] Successfully obtained local stream with constraints:', constraints);
-      break;
-    } catch (err) {
-      console.warn('[Media] Constraint attempt failed, trying fallback...', err);
-    }
-  }
-
-  if (localStream) {
-    localVideo.srcObject = localStream;
-    localVideo.play().catch((e) => console.log('Local video play error:', e));
-    return localStream;
-  } else {
-    alert('Please grant Camera and Microphone permissions to chat on Liveza.fun.');
-    return null;
+  if (permissionModal) {
+    permissionModal.style.display = 'flex';
   }
 }
 
-// Auto init local media on page load
-initLocalMedia();
+function hidePermissionModal() {
+  if (permissionModal) {
+    permissionModal.style.display = 'none';
+  }
+}
+
+if (closePermissionModal) {
+  closePermissionModal.addEventListener('click', hidePermissionModal);
+}
+
+if (dismissPermissionBtn) {
+  dismissPermissionBtn.addEventListener('click', hidePermissionModal);
+}
+
+if (retryPermissionBtn) {
+  retryPermissionBtn.addEventListener('click', async () => {
+    hidePermissionModal();
+    const stream = await initLocalMedia({ isUserAction: true });
+    if (stream && startBtn && !startBtn.disabled) {
+      startBtn.click();
+    }
+  });
+}
+
+if (permissionModal) {
+  permissionModal.addEventListener('click', (e) => {
+    if (e.target === permissionModal) {
+      hidePermissionModal();
+    }
+  });
+}
+
+if (localCamPrompt) {
+  localCamPrompt.addEventListener('click', () => {
+    initLocalMedia({ isUserAction: true });
+  });
+}
+
+let isRequestingMedia = false;
+
+// Initialize Camera & Microphone with Mobile & Desktop Fallbacks
+async function initLocalMedia(options = {}) {
+  const { isUserAction = false, isPageLoad = false } = options;
+
+  if (localStream) return localStream;
+  if (isRequestingMedia) return null;
+
+  isRequestingMedia = true;
+
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('[Media Error] getUserMedia is not supported in this browser or requires HTTPS.');
+      if (localCamPrompt) localCamPrompt.style.display = 'flex';
+      if (isUserAction) {
+        showPermissionModal({
+          title: 'HTTPS / Browser Support Required',
+          subtitle: 'Camera & Microphone access requires a secure HTTPS connection.',
+          errorMsg: 'Liveza requires HTTPS and modern browser support. If you are inside an in-app browser (Instagram/Facebook/etc.), please tap ⋮ in top right and choose "Open in Chrome" or "Open in Safari".'
+        });
+      }
+      return null;
+    }
+
+    // Comprehensive Fallback Constraint Tiers:
+    // Tier 1: User-facing video (ideal resolution) + audio
+    // Tier 2: Basic user-facing video + audio
+    // Tier 3: Standard video + audio
+    // Tier 4: Video only (e.g. desktop with webcam but no microphone)
+    // Tier 5: Audio only (e.g. laptop/desktop with microphone but no webcam)
+    const constraintTiers = [
+      {
+        name: 'Video (HD) & Audio',
+        constraints: {
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: true
+        }
+      },
+      {
+        name: 'Video & Audio (Basic)',
+        constraints: {
+          video: { facingMode: 'user' },
+          audio: true
+        }
+      },
+      {
+        name: 'Video & Audio (Standard)',
+        constraints: {
+          video: true,
+          audio: true
+        }
+      },
+      {
+        name: 'Video Only',
+        constraints: {
+          video: true,
+          audio: false
+        }
+      },
+      {
+        name: 'Audio Only',
+        constraints: {
+          video: false,
+          audio: true
+        }
+      }
+    ];
+
+    let lastError = null;
+
+    for (const tier of constraintTiers) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia(tier.constraints);
+        console.log(`[Media] Successfully obtained stream via: ${tier.name}`);
+        break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Media] Tier "${tier.name}" failed:`, err.name, err.message);
+      }
+    }
+
+    if (localStream) {
+      localVideo.srcObject = localStream;
+      localVideo.play().catch((e) => console.log('Local video play error:', e));
+
+      const videoTracks = localStream.getVideoTracks();
+      const audioTracks = localStream.getAudioTracks();
+
+      if (videoTracks.length === 0) {
+        camEnabled = false;
+        if (camBtn) camBtn.classList.add('off');
+        if (localCamOff) localCamOff.style.display = 'flex';
+      } else {
+        camEnabled = true;
+        if (camBtn) camBtn.classList.remove('off');
+        if (localCamOff) localCamOff.style.display = 'none';
+      }
+
+      if (audioTracks.length === 0) {
+        micEnabled = false;
+        if (micBtn) micBtn.classList.add('off');
+      } else {
+        micEnabled = true;
+        if (micBtn) micBtn.classList.remove('off');
+      }
+
+      if (localCamPrompt) localCamPrompt.style.display = 'none';
+      hidePermissionModal();
+      return localStream;
+    } else {
+      console.error('[Media] All media constraint tiers failed:', lastError);
+      if (localCamPrompt) localCamPrompt.style.display = 'flex';
+
+      // Do NOT show blocking alerts or modal on silent page load!
+      // Only show permission modal if user explicitly clicked a button
+      if (isUserAction) {
+        let title = 'Camera & Microphone Access Required';
+        let subtitle = 'Liveza needs permission to stream your video and audio.';
+        let msg = 'Camera and Microphone permissions were blocked in your browser.';
+
+        if (lastError) {
+          if (lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError') {
+            title = 'Permission Blocked in Browser';
+            subtitle = 'Camera or Microphone access was denied in your browser settings.';
+            msg = 'Please click the lock (🔒) or site settings (🎛️) icon next to chat.liveza.fun in the address bar and switch Camera & Microphone to "Allow".';
+          } else if (lastError.name === 'NotFoundError' || lastError.name === 'DevicesNotFoundError') {
+            title = 'Camera / Mic Not Detected';
+            subtitle = 'No camera or microphone was found on this device.';
+            msg = 'Please connect a webcam or microphone/headset and click "Allow / Try Again".';
+          } else if (lastError.name === 'NotReadableError' || lastError.name === 'TrackStartError') {
+            title = 'Camera / Mic In Use';
+            subtitle = 'Your camera or microphone is in use by another application.';
+            msg = 'Please close any other app using your camera (Zoom, Teams, Skype, or other tabs) and click "Allow / Try Again".';
+          } else if (lastError.name === 'OverconstrainedError') {
+            title = 'Camera Resolution Not Supported';
+            subtitle = 'Your camera does not support the requested video settings.';
+            msg = 'Please click "Allow / Try Again" to connect with default settings.';
+          }
+        }
+
+        showPermissionModal({
+          title,
+          subtitle,
+          errorMsg: msg
+        });
+      }
+
+      return null;
+    }
+  } finally {
+    isRequestingMedia = false;
+  }
+}
+
+// Auto init local media on page load SILENTLY (no blocking alerts!)
+initLocalMedia({ isPageLoad: true, isUserAction: false });
 
 // Update UI Status Badge
 function setStatus(state, message) {
@@ -208,7 +394,9 @@ async function setupPeerConnection(partnerId, isInitiator) {
   pendingCandidates = [];
 
   // Ensure local media is ready before adding tracks
-  await initLocalMedia();
+  if (!localStream) {
+    await initLocalMedia({ isUserAction: true });
+  }
 
   peerConnection = new RTCPeerConnection(rtcConfig);
 
@@ -308,7 +496,13 @@ function cleanupPeerConnection() {
 // Button Listeners
 startBtn.addEventListener('click', async () => {
   cleanupPeerConnection();
-  await initLocalMedia();
+
+  // User click action guarantees browser permits permission request
+  const stream = await initLocalMedia({ isUserAction: true });
+  if (!stream) {
+    // If user has not yet permitted or hardware unavailable, modal guides them
+    return;
+  }
 
   // Unmute remoteVideo on user tap if autoplay was muted
   if (remoteVideo) remoteVideo.muted = false;
@@ -325,7 +519,11 @@ startBtn.addEventListener('click', async () => {
 
 nextBtn.addEventListener('click', async () => {
   cleanupPeerConnection();
-  await initLocalMedia();
+
+  if (!localStream) {
+    const stream = await initLocalMedia({ isUserAction: true });
+    if (!stream) return;
+  }
 
   if (remoteVideo) remoteVideo.muted = false;
 
@@ -345,8 +543,11 @@ socket.on('partnerMediaState', ({ videoEnabled, audioEnabled }) => {
 });
 
 // Mic & Cam Toggle Controls
-micBtn.addEventListener('click', () => {
-  if (!localStream) return;
+micBtn.addEventListener('click', async () => {
+  if (!localStream) {
+    await initLocalMedia({ isUserAction: true });
+    return;
+  }
   micEnabled = !micEnabled;
   localStream.getAudioTracks().forEach((t) => (t.enabled = micEnabled));
   micBtn.classList.toggle('off', !micEnabled);
@@ -354,8 +555,11 @@ micBtn.addEventListener('click', () => {
   socket.emit('mediaStateChange', { videoEnabled: camEnabled, audioEnabled: micEnabled });
 });
 
-camBtn.addEventListener('click', () => {
-  if (!localStream) return;
+camBtn.addEventListener('click', async () => {
+  if (!localStream) {
+    await initLocalMedia({ isUserAction: true });
+    return;
+  }
   camEnabled = !camEnabled;
   localStream.getVideoTracks().forEach((t) => (t.enabled = camEnabled));
   camBtn.classList.toggle('off', !camEnabled);

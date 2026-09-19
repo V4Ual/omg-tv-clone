@@ -188,6 +188,17 @@
           <span>Camera Off</span>
         </div>
 
+        <!-- Permission Prompt Overlay on Local Card -->
+        <div class="cam-permission-overlay" id="localCamPrompt" style="display: none;">
+          <div class="cam-prompt-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <span>Enable Cam</span>
+        </div>
+
         <div class="local-label">
           <span class="user-badge-dot"></span>
           <span>You</span>
@@ -227,6 +238,73 @@
         </div>
       </div>
     </footer>
+  </div>
+
+  <!-- Camera & Microphone Permission Guide Modal -->
+  <div class="modal-backdrop" id="permissionModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-icon-badge">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <div class="modal-header-text">
+          <h2 id="permissionModalTitle">Camera & Mic Access Required</h2>
+          <p id="permissionModalSubtitle">Liveza needs permission to stream your video and audio.</p>
+        </div>
+        <button class="modal-close-btn" id="closePermissionModal" title="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="error-banner" id="permissionErrorBanner">
+          <span class="error-icon">⚠️</span>
+          <span class="error-msg" id="permissionErrorMsg">Camera and Microphone permissions were blocked in your browser.</span>
+        </div>
+
+        <div class="instructions-card">
+          <div class="instruction-title">How to enable on this device:</div>
+
+          <div class="step-item">
+            <div class="step-num">1</div>
+            <div class="step-text">
+              Look at the top address bar next to <strong>chat.liveza.fun</strong> and tap or click the <strong>lock (🔒)</strong> or <strong>site settings (🎛️)</strong> icon.
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div class="step-text">
+              Locate <strong>Camera</strong> and <strong>Microphone</strong>, and switch them both to <strong>"Allow"</strong>.
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div class="step-text">
+              Make sure no other app (Zoom, Teams, Skype, or other browser tabs) is currently using your webcam.
+            </div>
+          </div>
+
+          <div class="inapp-browser-hint" id="inAppBrowserHint" style="display: none;">
+            <div class="inapp-icon">💡</div>
+            <div class="inapp-text">
+              <strong>Using an in-app browser (Instagram / Facebook / etc.)?</strong> Tap the <strong>⋮</strong> menu in the corner and select <strong>"Open in Chrome"</strong> or <strong>"Open in Safari"</strong>.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary modal-action-btn" id="retryPermissionBtn">
+          <span>🔄 Allow / Try Again</span>
+        </button>
+        <button class="btn btn-secondary modal-cancel-btn" id="dismissPermissionBtn">
+          Dismiss
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

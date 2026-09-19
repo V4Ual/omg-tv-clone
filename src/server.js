@@ -11,6 +11,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Explicitly grant Camera and Microphone permissions in HTTP headers
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(self "*"), microphone=(self "*"), display-capture=(self "*")');
+  next();
+});
+
 // Serve static web app assets
 app.use(express.static(path.join(__dirname, '../public')));
 
