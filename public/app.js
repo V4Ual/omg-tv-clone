@@ -400,3 +400,92 @@ if (installBtn) {
     installBtn.style.display = 'none';
   });
 }
+
+// Draggable Local Self Video PiP for Mobile & Desktop
+function enableDraggablePiP(cardEl, containerEl) {
+  if (!cardEl || !containerEl) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  function onPointerDown(e) {
+    if (e.button && e.button !== 0) return;
+    isDragging = true;
+    cardEl.classList.add('is-dragging');
+
+    const cardRect = cardEl.getBoundingClientRect();
+    const containerRect = containerEl.getBoundingClientRect();
+
+    startX = e.clientX;
+    startY = e.clientY;
+    initialLeft = cardRect.left - containerRect.left;
+    initialTop = cardRect.top - containerRect.top;
+
+    cardEl.style.left = `${initialLeft}px`;
+    cardEl.style.top = `${initialTop}px`;
+    cardEl.style.right = 'auto';
+    cardEl.style.bottom = 'auto';
+
+    try {
+      cardEl.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    e.preventDefault();
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const containerRect = containerEl.getBoundingClientRect();
+    const cardRect = cardEl.getBoundingClientRect();
+
+    let newLeft = initialLeft + dx;
+    let newTop = initialTop + dy;
+
+    const maxLeft = Math.max(8, containerRect.width - cardRect.width - 8);
+    const maxTop = Math.max(8, containerRect.height - cardRect.height - 8);
+
+    newLeft = Math.max(8, Math.min(newLeft, maxLeft));
+    newTop = Math.max(8, Math.min(newTop, maxTop));
+
+    cardEl.style.left = `${newLeft}px`;
+    cardEl.style.top = `${newTop}px`;
+  }
+
+  function onPointerUp(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    cardEl.classList.remove('is-dragging');
+    try {
+      cardEl.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  cardEl.addEventListener('pointerdown', onPointerDown);
+  cardEl.addEventListener('pointermove', onPointerMove);
+  cardEl.addEventListener('pointerup', onPointerUp);
+  cardEl.addEventListener('pointercancel', onPointerUp);
+
+  window.addEventListener('resize', () => {
+    if (cardEl.style.left && cardEl.style.left !== 'auto') {
+      const containerRect = containerEl.getBoundingClientRect();
+      const cardRect = cardEl.getBoundingClientRect();
+      const curLeft = parseFloat(cardEl.style.left) || 0;
+      const curTop = parseFloat(cardEl.style.top) || 0;
+      const maxLeft = Math.max(8, containerRect.width - cardRect.width - 8);
+      const maxTop = Math.max(8, containerRect.height - cardRect.height - 8);
+
+      cardEl.style.left = `${Math.max(8, Math.min(curLeft, maxLeft))}px`;
+      cardEl.style.top = `${Math.max(8, Math.min(curTop, maxTop))}px`;
+    }
+  });
+}
+
+const localCard = document.getElementById('localCard');
+enableDraggablePiP(localCard, viewport);
+

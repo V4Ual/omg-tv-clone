@@ -764,7 +764,18 @@ body {
   box-shadow: var(--shadow-pip);
   background: #0e1430;
   z-index: 15;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.25s ease;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.local-card.is-dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  opacity: 0.92;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(139, 92, 246, 0.8);
 }
 
 .local-card:hover {
@@ -1002,8 +1013,18 @@ body {
 }
 
 /* ============================================================
-   Responsive Design & Mobile Viewports
+   Responsive Design & Mobile Phone Viewports
    ============================================================ */
+
+/* Helper for text responsive collapse */
+.btn-word-main {
+  display: inline;
+}
+
+.btn-word-sub {
+  display: inline;
+}
+
 @media (max-width: 900px) {
   .placeholder-heading {
     font-size: 1.6rem;
@@ -1016,13 +1037,18 @@ body {
 
 @media (max-width: 768px) {
   .app-wrapper {
-    padding: 8px 10px;
+    padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
     gap: 8px;
+    height: 100dvh;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .navbar {
-    padding: 8px 14px;
+    padding: 8px 12px;
     border-radius: var(--radius-lg);
+    gap: 8px;
+    flex-shrink: 0;
   }
 
   .logo-title {
@@ -1036,6 +1062,7 @@ body {
   .logo-icon-bg {
     width: 36px;
     height: 36px;
+    border-radius: 10px;
   }
 
   .brand-svg-icon {
@@ -1043,55 +1070,108 @@ body {
     height: 20px;
   }
 
-  .logo-subtitle {
+  .logo-subtitle,
+  .logo-live-pill {
     display: none;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .online-badge {
+    padding: 5px 10px;
+    font-size: 0.76rem;
+    gap: 5px;
+  }
+
+  .status-badge {
+    padding: 5px 10px;
+    font-size: 0.76rem;
+    gap: 5px;
   }
 
   .viewport {
     border-radius: var(--radius-xl);
-    min-height: 280px;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .video-placeholder {
+    padding: 16px 14px;
+    gap: 14px;
   }
 
   .radar-outer {
-    width: 120px;
-    height: 120px;
+    width: 110px;
+    height: 110px;
   }
 
   .radar-center {
-    width: 58px;
-    height: 58px;
+    width: 52px;
+    height: 52px;
   }
 
   .radar-icon {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
   }
 
-  .radar-ring.r1 { width: 58px; height: 58px; }
-  .radar-ring.r2 { width: 85px; height: 85px; }
-  .radar-ring.r3 { width: 110px; height: 110px; }
-  .radar-ring.r4 { width: 135px; height: 135px; }
+  .radar-ring.r1 { width: 52px; height: 52px; }
+  .radar-ring.r2 { width: 76px; height: 76px; }
+  .radar-ring.r3 { width: 98px; height: 98px; }
+  .radar-ring.r4 { width: 120px; height: 120px; }
+  .radar-sweep-beam { width: 120px; height: 120px; }
 
   .placeholder-heading {
     font-size: 1.35rem;
+    letter-spacing: -0.4px;
   }
 
   .placeholder-desc {
-    font-size: 0.88rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    max-width: 320px;
   }
 
+  .feature-pills {
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .pill {
+    font-size: 0.72rem;
+    padding: 5px 10px;
+    gap: 5px;
+  }
+
+  /* Self PiP placed cleanly at top-right so it never covers center content or bottom dock */
   .local-card {
-    width: 130px;
-    height: 175px;
-    bottom: 12px;
+    position: absolute;
+    top: 12px;
     right: 12px;
+    bottom: auto;
+    width: 96px;
+    height: 134px;
     border-radius: var(--radius-lg);
+    border-width: 1.5px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+    z-index: 20;
+  }
+
+  .local-label {
+    bottom: 6px;
+    left: 6px;
+    padding: 2px 7px;
+    font-size: 0.68rem;
+    border-radius: 8px;
   }
 
   .partner-tag {
     top: 12px;
     left: 12px;
     padding: 5px 12px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
   }
 
   .tag-quality-pill {
@@ -1099,8 +1179,8 @@ body {
   }
 
   .quick-reactions {
-    left: 12px;
-    bottom: 12px;
+    left: 10px;
+    bottom: 10px;
     padding: 4px 8px;
     gap: 5px;
   }
@@ -1111,32 +1191,66 @@ body {
     font-size: 1.05rem;
   }
 
+  /* Dock Controls Bar - Never clips buttons */
+  .controls-dock {
+    padding: 2px 0 max(4px, env(safe-area-inset-bottom)) 0;
+    width: 100%;
+  }
+
   .controls-inner {
-    padding: 8px 12px;
+    padding: 8px 10px;
     gap: 8px;
     border-radius: var(--radius-xl);
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .btn {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
-    padding: 12px 10px;
-    font-size: 0.85rem;
+    padding: 11px 8px;
+    font-size: 0.84rem;
     gap: 6px;
     border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .btn-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .key-hint {
-    display: none; /* Hide keycaps on touch screens */
+    display: none;
   }
 
   .btn-icon {
     font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .divider-line {
+    height: 26px;
+    margin: 0 1px;
+    flex-shrink: 0;
+  }
+
+  .media-toggles {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
   }
 
   .icon-btn {
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    flex-shrink: 0;
     font-size: 1.15rem;
     border-radius: var(--radius-md);
   }
@@ -1146,34 +1260,87 @@ body {
   }
 }
 
-@media (max-width: 480px) {
-  .logo-live-pill {
-    display: none;
+/* Compact Smartphones (iPhone 12/13/14/15, Galaxy S series, Pixel, etc.) */
+@media (max-width: 520px) {
+  .app-wrapper {
+    padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    gap: 6px;
   }
 
+  .navbar {
+    padding: 7px 10px;
+  }
+
+  .logo-title {
+    font-size: 1.18rem;
+  }
+
+  .logo-domain-badge {
+    font-size: 0.95rem;
+  }
+
+  .logo-icon-bg {
+    width: 34px;
+    height: 34px;
+  }
+
+  .online-badge,
   .status-badge {
-    padding: 5px 10px;
-    font-size: 0.75rem;
+    padding: 4px 8px;
+    font-size: 0.72rem;
   }
 
-  .online-badge {
-    padding: 5px 10px;
-    font-size: 0.75rem;
+  .video-placeholder {
+    padding: 12px 10px;
+    gap: 12px;
   }
 
-  .feature-pills .pill:last-child {
-    display: none;
+  .radar-outer {
+    width: 92px;
+    height: 92px;
   }
 
-  .btn-text {
+  .radar-center {
+    width: 46px;
+    height: 46px;
+  }
+
+  .radar-icon {
+    font-size: 1.3rem;
+  }
+
+  .radar-ring.r1 { width: 46px; height: 46px; }
+  .radar-ring.r2 { width: 66px; height: 66px; }
+  .radar-ring.r3 { width: 84px; height: 84px; }
+  .radar-ring.r4 { width: 104px; height: 104px; }
+  .radar-sweep-beam { width: 104px; height: 104px; }
+
+  .placeholder-heading {
+    font-size: 1.2rem;
+  }
+
+  .placeholder-desc {
     font-size: 0.8rem;
+    line-height: 1.4;
+    max-width: 275px;
+  }
+
+  .pill {
+    font-size: 0.69rem;
+    padding: 4px 8px;
   }
 
   .local-card {
-    width: 115px;
-    height: 155px;
-    bottom: 8px;
-    right: 8px;
+    top: 10px;
+    right: 10px;
+    width: 86px;
+    height: 120px;
+    border-radius: 12px;
+  }
+
+  /* Shorten text cleanly on mobile phones so camera & mic buttons never get pushed off */
+  .btn-word-sub {
+    display: none;
   }
 
   .controls-inner {
@@ -1181,9 +1348,194 @@ body {
     gap: 6px;
   }
 
+  .btn {
+    padding: 10px 6px;
+    font-size: 0.82rem;
+    gap: 5px;
+  }
+
   .icon-btn {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
     font-size: 1.05rem;
+  }
+
+  .quick-reactions {
+    left: 8px;
+    bottom: 8px;
+    padding: 3px 6px;
+    gap: 4px;
+  }
+
+  .reaction-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Ultra-Narrow Screens (iPhone SE 1st gen, Fold outer screens, <= 360px) */
+@media (max-width: 360px) {
+  .app-wrapper {
+    padding: 4px 6px;
+    gap: 5px;
+  }
+
+  .navbar {
+    padding: 5px 8px;
+  }
+
+  .logo-title {
+    font-size: 1.08rem;
+  }
+
+  .logo-domain-badge {
+    font-size: 0.85rem;
+  }
+
+  .logo-icon-bg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .brand-svg-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .online-badge,
+  .status-badge {
+    padding: 3px 6px;
+    font-size: 0.67rem;
+    gap: 3px;
+  }
+
+  .local-card {
+    width: 76px;
+    height: 106px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .controls-inner {
+    padding: 5px 6px;
+    gap: 4px;
+  }
+
+  .btn {
+    padding: 9px 4px;
+    font-size: 0.76rem;
+    gap: 4px;
+  }
+
+  .btn-icon {
+    font-size: 0.95rem;
+  }
+
+  .media-toggles {
+    gap: 4px;
+  }
+
+  .icon-btn {
+    width: 35px;
+    height: 35px;
+    min-width: 35px;
+    min-height: 35px;
+    font-size: 0.95rem;
+  }
+
+  .reaction-btn {
+    width: 25px;
+    height: 25px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Mobile Landscape Orientation */
+@media (max-height: 520px) and (orientation: landscape) {
+  .app-wrapper {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+
+  .navbar {
+    padding: 4px 10px;
+  }
+
+  .logo-subtitle,
+  .logo-live-pill {
+    display: none;
+  }
+
+  .viewport {
+    min-height: 0;
+  }
+
+  .video-placeholder {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .radar-outer {
+    width: 52px;
+    height: 52px;
+  }
+
+  .radar-center {
+    width: 28px;
+    height: 28px;
+  }
+
+  .radar-icon {
+    font-size: 0.95rem;
+  }
+
+  .radar-ring {
+    display: none;
+  }
+
+  .placeholder-heading {
+    font-size: 0.95rem;
+  }
+
+  .placeholder-desc {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    max-width: 360px;
+  }
+
+  .feature-pills {
+    display: none;
+  }
+
+  .local-card {
+    width: 72px;
+    height: 98px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .controls-dock {
+    padding: 2px 0;
+  }
+
+  .controls-inner {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .btn {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    font-size: 0.95rem;
   }
 }
