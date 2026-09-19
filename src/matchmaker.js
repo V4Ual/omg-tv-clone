@@ -107,13 +107,9 @@ class Matchmaker {
         console.log(`[Matchmaker] Partner ${partnerId} notified that ${socket.id} left`);
         io.to(partnerId).emit('partnerLeft', { message: 'Your partner has disconnected.' });
 
-        // Re-enqueue partner automatically
-        const partnerSocket = io.sockets.sockets.get(partnerId);
-        if (partnerSocket) {
-          this.userRooms.delete(partnerId);
-          this.removeFromQueue(partnerId);
-          this.waitingQueue.push(partnerId);
-        }
+        // Clean up partner room mapping and queue state cleanly
+        this.userRooms.delete(partnerId);
+        this.removeFromQueue(partnerId);
       }
     }
 

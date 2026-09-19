@@ -32,8 +32,24 @@ const io = new Server(server, {
   }
 });
 
+function getActiveUserCount() {
+  let count = 0;
+  if (io && io.sockets && io.sockets.sockets) {
+    for (const [_, s] of io.sockets.sockets) {
+      if (s.connected && !s.disconnected) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
 function broadcastUserCount() {
-  io.emit('userCount', { count: io.engine.clientsCount });
+  setTimeout(() => {
+    const count = getActiveUserCount();
+    console.log(`[Socket.io] Broadcasting online users count: ${count}`);
+    io.emit('userCount', { count: Math.max(1, count) });
+  }, 80);
 }
 
 io.on('connection', (socket) => {

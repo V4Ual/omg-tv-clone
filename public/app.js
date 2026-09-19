@@ -3,6 +3,7 @@ const socket = io();
 // DOM Elements
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
+const remoteAudio = document.getElementById('remoteAudio');
 const startBtn = document.getElementById('startBtn');
 const nextBtn = document.getElementById('nextBtn');
 const micBtn = document.getElementById('micBtn');
@@ -20,6 +21,13 @@ const viewport = document.querySelector('.viewport');
 const quickReactions = document.getElementById('quickReactions');
 const reactionsContainer = document.getElementById('reactionsContainer');
 
+// Disconnect Overlay Elements
+const partnerDisconnectOverlay = document.getElementById('partnerDisconnectOverlay');
+const disconnectCountdown = document.getElementById('disconnectCountdown');
+const disconnectTimerPill = document.getElementById('disconnectTimerPill');
+const disconnectNextBtn = document.getElementById('disconnectNextBtn');
+const disconnectCancelBtn = document.getElementById('disconnectCancelBtn');
+
 // Permission Modal Elements
 const permissionModal = document.getElementById('permissionModal');
 const permissionModalTitle = document.getElementById('permissionModalTitle');
@@ -34,15 +42,21 @@ const unmuteSoundBtn = document.getElementById('unmuteSoundBtn');
 
 if (unmuteSoundBtn) {
   unmuteSoundBtn.addEventListener('click', () => {
+    if (remoteAudio) {
+      remoteAudio.muted = false;
+      remoteAudio.volume = 1.0;
+      remoteAudio.play().catch((e) => console.log('Unmute audio error:', e));
+    }
     if (remoteVideo) {
       remoteVideo.muted = false;
-      remoteVideo.play().catch((e) => console.log('Unmute play error:', e));
+      remoteVideo.play().catch((e) => console.log('Unmute video error:', e));
     }
     unmuteSoundBtn.style.display = 'none';
   });
 }
 
 let localStream = null;
+let remoteStream = null;
 let peerConnection = null;
 let currentPartnerId = null;
 let pendingCandidates = [];
@@ -51,8 +65,12 @@ let isPeerReady = false;
 let isMakingOffer = false;
 let micEnabled = true;
 let camEnabled = true;
+let disconnectTimer = null;
+let countdownRemaining = 3;
+let nextCooldownTimer = null;
+let nextCooldownSeconds = 0;
 
-// High-Availability WebRTC Configuration with Global STUN & Open TURN Relays
+// High-Availability WebRTC Configuration with Global STUN & Open TURN/TURNS Relays
 const rtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -66,7 +84,8 @@ const rtcConfig = {
       urls: [
         'turn:openrelay.metered.ca:80',
         'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turns:openrelay.metered.ca:443?transport=tcp'
       ],
       username: 'openrelay',
       credential: 'openrelay'
@@ -204,14 +223,14 @@ async function initLocalMedia(options = {}) {
         name: 'Video (HD) & Audio',
         constraints: {
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: true
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
         }
       },
       {
         name: 'Video & Audio (Basic)',
         constraints: {
           video: { facingMode: 'user' },
-          audio: true
+          audio: { echoCancellation: true, noiseSuppression: true }
         }
       },
       {
@@ -232,7 +251,7 @@ async function initLocalMedia(options = {}) {
         name: 'Audio Only',
         constraints: {
           video: false,
-          audio: true
+          audio: { echoCancellation: true, noiseSuppression: true }
         }
       }
     ];
@@ -344,31 +363,177 @@ socket.on('userCount', ({ count }) => {
   }
 });
 
+// 5-Second Cooldown on Next Button
+function startNextCooldown() {
+  clearNextCooldown();
+  nextCooldownSeconds = 5;
+  if (nextBtn) {
+    nextBtn.disabled = true;
+    nextBtn.classList.add('btn-cooldown');
+    updateNextBtnDisplay();
+  }
+
+  nextCooldownTimer = setInterval(() => {
+    nextCooldownSeconds -= 1;
+    if (nextCooldownSeconds <= 0) {
+      clearNextCooldown();
+    } else {
+      updateNextBtnDisplay();
+    }
+  }, 1000);
+}
+
+function updateNextBtnDisplay() {
+  if (!nextBtn) return;
+  const wordMain = nextBtn.querySelector('.btn-word-main');
+  const wordSub = nextBtn.querySelector('.btn-word-sub');
+  const keyHint = nextBtn.querySelector('.key-hint');
+  if (wordMain) wordMain.textContent = `Wait (${nextCooldownSeconds}s)`;
+  if (wordSub) wordSub.textContent = '';
+  if (keyHint) keyHint.style.display = 'none';
+}
+
+function clearNextCooldown() {
+  if (nextCooldownTimer) {
+    clearInterval(nextCooldownTimer);
+    nextCooldownTimer = null;
+  }
+  nextCooldownSeconds = 0;
+  if (nextBtn) {
+    nextBtn.disabled = false;
+    nextBtn.classList.remove('btn-cooldown');
+    const wordMain = nextBtn.querySelector('.btn-word-main');
+    const wordSub = nextBtn.querySelector('.btn-word-sub');
+    const keyHint = nextBtn.querySelector('.key-hint');
+    if (wordMain) wordMain.textContent = 'Next';
+    if (wordSub) wordSub.textContent = ' Partner';
+    if (keyHint) keyHint.style.display = 'inline-block';
+  }
+}
+
+// Prime Audio Playback on User Interaction
+function primeAudioContext() {
+  if (remoteAudio) {
+    remoteAudio.play().catch(() => {});
+  }
+  if (remoteVideo) {
+    remoteVideo.play().catch(() => {});
+  }
+}
+
+function clearDisconnectTimer() {
+  if (disconnectTimer) {
+    clearInterval(disconnectTimer);
+    disconnectTimer = null;
+  }
+}
+
+function handlePartnerLeft() {
+  console.log('[Liveza] Partner disconnected');
+  clearDisconnectTimer();
+  clearNextCooldown();
+  cleanupPeerConnection();
+
+  // Keep local stream & local video running smoothly!
+  // Hide radar search placeholder so the page never looks like it refreshed/crashed
+  if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+  if (viewport) viewport.classList.remove('searching');
+
+  setStatus('idle', 'Partner Disconnected');
+  if (startBtn) startBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = false;
+
+  if (partnerDisconnectOverlay) {
+    partnerDisconnectOverlay.style.display = 'flex';
+    if (disconnectTimerPill) disconnectTimerPill.style.display = 'inline-flex';
+    countdownRemaining = 3;
+    if (disconnectCountdown) disconnectCountdown.textContent = countdownRemaining;
+
+    clearDisconnectTimer();
+    disconnectTimer = setInterval(() => {
+      countdownRemaining -= 1;
+      if (disconnectCountdown) disconnectCountdown.textContent = countdownRemaining;
+      if (countdownRemaining <= 0) {
+        clearDisconnectTimer();
+        if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
+        startFindingPartner(true);
+      }
+    }, 1000);
+  }
+}
+
+async function startFindingPartner(isNext = false) {
+  clearDisconnectTimer();
+  clearNextCooldown();
+  if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
+
+  cleanupPeerConnection();
+
+  // Prime audio playback during user gesture to avoid browser autoplay blocks
+  primeAudioContext();
+
+  if (!localStream) {
+    const stream = await initLocalMedia({ isUserAction: true });
+    if (!stream) return;
+  }
+
+  if (remoteVideo) remoteVideo.muted = false;
+
+  setStatus('searching', 'Searching...');
+  if (viewport) viewport.classList.add('searching');
+  if (placeholderHeading) placeholderHeading.textContent = isNext ? 'Finding next match...' : 'Searching Liveza partner...';
+  if (placeholderText) placeholderText.textContent = isNext ? 'Switching partner... Connecting now!' : 'Matching you with someone online right now!';
+  if (remotePlaceholder) remotePlaceholder.style.display = 'flex';
+  if (partnerTag) partnerTag.style.display = 'none';
+
+  if (startBtn) startBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = false;
+
+  if (isNext) {
+    socket.emit('nextPartner');
+  } else {
+    socket.emit('findMatch');
+  }
+}
+
+// Disconnect Overlay Button Listeners
+if (disconnectNextBtn) {
+  disconnectNextBtn.addEventListener('click', () => {
+    clearDisconnectTimer();
+    if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
+    startFindingPartner(true);
+  });
+}
+
+if (disconnectCancelBtn) {
+  disconnectCancelBtn.addEventListener('click', () => {
+    clearDisconnectTimer();
+    if (disconnectTimerPill) disconnectTimerPill.style.display = 'none';
+    setStatus('idle', 'Disconnected');
+  });
+}
+
 socket.on('matched', async ({ roomId, partnerId, isInitiator }) => {
   console.log(`Matched on Liveza in room ${roomId} with partner ${partnerId}, initiator: ${isInitiator}`);
+  clearDisconnectTimer();
+  if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
   setStatus('connected', 'Connected');
   if (viewport) viewport.classList.remove('searching');
-  nextBtn.disabled = false;
-  startBtn.disabled = true;
+  if (startBtn) startBtn.disabled = true;
 
   if (quickReactions) quickReactions.style.display = 'flex';
+
+  // Start 5-second cooldown on next button to prevent spamming
+  startNextCooldown();
 
   await setupPeerConnection(partnerId, isInitiator);
 });
 
-socket.on('partnerLeft', ({ message }) => {
-  console.log('Partner left:', message);
-  cleanupPeerConnection();
-  setStatus('searching', 'Searching...');
-  if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Searching Liveza network...';
-  if (placeholderText) placeholderText.textContent = 'Connecting you to a new person worldwide...';
-  remotePlaceholder.style.display = 'flex';
-  partnerTag.style.display = 'none';
-  if (quickReactions) quickReactions.style.display = 'none';
+socket.on('partnerLeft', () => {
+  handlePartnerLeft();
 });
 
-// Signaling Messages Handling with Buffered Queue (prevents race conditions)
+// Signaling Messages Handling with Buffered Queue & Collision Avoidance
 socket.on('signal', async ({ from, signal }) => {
   if (signal.emoji) {
     triggerFloatingEmoji(signal.emoji);
@@ -396,27 +561,59 @@ async function handleIncomingSignal(from, signal) {
   try {
     if (signal.sdp) {
       console.log('[WebRTC] Processing SDP:', signal.sdp.type, 'from:', from);
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+      const desc = new RTCSessionDescription(signal.sdp);
 
-      // Flush buffered ICE candidates
-      while (pendingCandidates.length > 0) {
-        const candidate = pendingCandidates.shift();
-        try {
-          await peerConnection.addIceCandidate(candidate);
-        } catch (e) {
-          console.warn('[WebRTC] Error adding buffered candidate:', e);
+      if (desc.type === 'offer') {
+        if (peerConnection.signalingState !== 'stable') {
+          console.warn('[WebRTC] Handling offer collision rollback on state:', peerConnection.signalingState);
+          await Promise.all([
+            peerConnection.setLocalDescription({ type: 'rollback' }),
+            peerConnection.setRemoteDescription(desc)
+          ]);
+        } else {
+          await peerConnection.setRemoteDescription(desc);
         }
-      }
 
-      if (signal.sdp.type === 'offer') {
-        const answer = await peerConnection.createAnswer();
+        // Flush buffered ICE candidates
+        while (pendingCandidates.length > 0) {
+          const candidate = pendingCandidates.shift();
+          try {
+            await peerConnection.addIceCandidate(candidate);
+          } catch (e) {
+            console.warn('[WebRTC] Error adding buffered candidate:', e);
+          }
+        }
+
+        const answer = await peerConnection.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
         await peerConnection.setLocalDescription(answer);
         socket.emit('signal', { to: from, signal: { sdp: peerConnection.localDescription } });
+      } else if (desc.type === 'answer') {
+        if (peerConnection.signalingState === 'have-local-offer') {
+          await peerConnection.setRemoteDescription(desc);
+
+          while (pendingCandidates.length > 0) {
+            const candidate = pendingCandidates.shift();
+            try {
+              await peerConnection.addIceCandidate(candidate);
+            } catch (e) {
+              console.warn('[WebRTC] Error adding buffered candidate:', e);
+            }
+          }
+        } else {
+          console.warn('[WebRTC] Ignoring unexpected answer in state:', peerConnection.signalingState);
+        }
       }
     } else if (signal.candidate) {
       const candidate = new RTCIceCandidate(signal.candidate);
       if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
-        await peerConnection.addIceCandidate(candidate);
+        try {
+          await peerConnection.addIceCandidate(candidate);
+        } catch (e) {
+          console.warn('[WebRTC] Error adding candidate:', e);
+        }
       } else {
         pendingCandidates.push(candidate);
       }
@@ -426,21 +623,31 @@ async function handleIncomingSignal(from, signal) {
   }
 }
 
-// PeerConnection Handler for Mobile & Desktop Video Streaming
+// PeerConnection Handler for Mobile & Desktop Video/Audio Streaming
 async function setupPeerConnection(partnerId, isInitiator) {
+  clearDisconnectTimer();
+  if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
   cleanupPeerConnection();
+
   currentPartnerId = partnerId;
   isPeerReady = false;
   pendingCandidates = [];
   signalQueue = [];
 
-  // 1. Immediately create RTCPeerConnection instance so incoming signals have a target
+  // 1. Immediately create RTCPeerConnection instance
   peerConnection = new RTCPeerConnection(rtcConfig);
 
-  // 2. Add local audio and video tracks if already available
+  // 2. Persistent remote MediaStream for video
+  remoteStream = new MediaStream();
+  if (remoteVideo) {
+    remoteVideo.srcObject = remoteStream;
+  }
+
+  // 3. Add local audio and video tracks if already available
   if (localStream) {
     localStream.getTracks().forEach((track) => {
       try {
+        console.log(`[WebRTC] Adding local ${track.kind} track (enabled: ${track.enabled})`);
         peerConnection.addTrack(track, localStream);
       } catch (e) {
         console.warn('[WebRTC] Track add error:', e);
@@ -448,42 +655,79 @@ async function setupPeerConnection(partnerId, isInitiator) {
     });
   }
 
-  // 3. Handle Incoming Remote Audio & Video Tracks
+  // 4. Handle Incoming Remote Audio & Video Tracks
   peerConnection.ontrack = (event) => {
-    console.log('[ontrack] Received remote track:', event.track.kind, event.streams);
+    console.log('[ontrack] Received remote track:', event.track.kind);
+
+    if (!remoteStream) {
+      remoteStream = new MediaStream();
+      if (remoteVideo) remoteVideo.srcObject = remoteStream;
+    }
+
+    // Always add track to remoteStream for video container
+    if (!remoteStream.getTracks().includes(event.track)) {
+      remoteStream.addTrack(event.track);
+    }
 
     if (event.streams && event.streams[0]) {
-      remoteVideo.srcObject = event.streams[0];
-    } else {
-      let stream = remoteVideo.srcObject;
-      if (!stream || !(stream instanceof MediaStream)) {
-        stream = new MediaStream();
-        remoteVideo.srcObject = stream;
-      }
-      if (!stream.getTracks().includes(event.track)) {
-        stream.addTrack(event.track);
+      event.streams[0].getTracks().forEach((t) => {
+        if (!remoteStream.getTracks().includes(t)) {
+          remoteStream.addTrack(t);
+        }
+      });
+    }
+
+    // Dedicated Audio Handling: route directly to remoteAudio element
+    if (event.track.kind === 'audio') {
+      event.track.enabled = true;
+      if (remoteAudio) {
+        remoteAudio.srcObject = event.streams[0] || new MediaStream([event.track]);
+        remoteAudio.volume = 1.0;
+        remoteAudio.muted = false;
+        remoteAudio.play().then(() => {
+          console.log('[WebRTC] Remote audio track playing through remoteAudio');
+        }).catch((err) => {
+          console.warn('[WebRTC] remoteAudio play error, showing unmute hint:', err);
+          if (unmuteSoundBtn) unmuteSoundBtn.style.display = 'flex';
+        });
       }
     }
 
-    // Instantly hide waiting placeholder & show partner indicators
-    if (remotePlaceholder) remotePlaceholder.style.display = 'none';
-    if (partnerTag) partnerTag.style.display = 'flex';
-    if (quickReactions) quickReactions.style.display = 'flex';
+    // Video Handling: reveal stage when video frame arrives
+    if (event.track.kind === 'video') {
+      event.track.onunmute = () => {
+        console.log('[WebRTC] Remote video track unmuted (first frame received)');
+        if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+        if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
+        if (partnerTag) partnerTag.style.display = 'flex';
+        if (quickReactions) quickReactions.style.display = 'flex';
+      };
+    }
 
-    // Play video with autoplay fallback for mobile devices
-    const playPromise = remoteVideo.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((err) => {
-        console.warn('Autoplay blocked on mobile, muting video temporarily to force play:', err);
-        remoteVideo.muted = true;
-        remoteVideo.play().then(() => {
-          if (unmuteSoundBtn) unmuteSoundBtn.style.display = 'flex';
-        }).catch((e) => console.error('Play failed after mute retry:', e));
-      });
+    // Play video element
+    if (remoteVideo) {
+      const playPromise = remoteVideo.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Autoplay blocked video on mobile, muting video element (audio plays via remoteAudio):', err);
+          remoteVideo.muted = true;
+          remoteVideo.play().catch((e) => console.error('Video play retry failed:', e));
+        });
+      }
     }
   };
 
-  // 4. Send local ICE candidates to remote partner
+  // Video element playing event listener ensures placeholder hides when frames render
+  if (remoteVideo) {
+    remoteVideo.onplaying = () => {
+      if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+      if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
+      if (partnerTag) partnerTag.style.display = 'flex';
+      if (quickReactions) quickReactions.style.display = 'flex';
+    };
+  }
+
+  // 5. Send local ICE candidates to remote partner
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && currentPartnerId === partnerId) {
       socket.emit('signal', {
@@ -493,17 +737,21 @@ async function setupPeerConnection(partnerId, isInitiator) {
     }
   };
 
-  // 5. Connection recovery & ICE restart
+  // 6. Connection recovery & ICE restart
   peerConnection.oniceconnectionstatechange = async () => {
     const state = peerConnection ? peerConnection.iceConnectionState : 'closed';
     console.log('[WebRTC] ICE Connection State:', state);
-    if (state === 'failed' && isInitiator && currentPartnerId === partnerId) {
-      console.log('[WebRTC] ICE failed, attempting restart...');
+    if ((state === 'failed' || state === 'disconnected') && isInitiator && currentPartnerId === partnerId) {
+      console.log('[WebRTC] ICE state', state, 'attempting restart...');
       try {
         if (peerConnection.restartIce) {
           peerConnection.restartIce();
         }
-        const offer = await peerConnection.createOffer({ iceRestart: true });
+        const offer = await peerConnection.createOffer({
+          iceRestart: true,
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
         await peerConnection.setLocalDescription(offer);
         socket.emit('signal', { to: partnerId, signal: { sdp: peerConnection.localDescription } });
       } catch (err) {
@@ -517,6 +765,7 @@ async function setupPeerConnection(partnerId, isInitiator) {
     console.log('[WebRTC] Connection State:', state);
     if (state === 'connected') {
       if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+      if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
       if (partnerTag) partnerTag.style.display = 'flex';
     }
   };
@@ -565,6 +814,7 @@ async function setupPeerConnection(partnerId, isInitiator) {
 }
 
 function cleanupPeerConnection() {
+  clearDisconnectTimer();
   currentPartnerId = null;
   isPeerReady = false;
   pendingCandidates = [];
@@ -582,60 +832,47 @@ function cleanupPeerConnection() {
     unmuteSoundBtn.style.display = 'none';
   }
 
+  if (partnerTag) {
+    partnerTag.style.display = 'none';
+  }
+
   if (peerConnection) {
     peerConnection.onicecandidate = null;
     peerConnection.ontrack = null;
     peerConnection.oniceconnectionstatechange = null;
     peerConnection.onconnectionstatechange = null;
-    peerConnection.close();
+    try {
+      peerConnection.close();
+    } catch (_) {}
     peerConnection = null;
   }
+
+  if (remoteStream) {
+    remoteStream.getTracks().forEach((t) => {
+      try { t.stop(); } catch (_) {}
+    });
+    remoteStream = null;
+  }
+
   if (remoteVideo) {
+    remoteVideo.pause();
     remoteVideo.srcObject = null;
+  }
+
+  if (remoteAudio) {
+    remoteAudio.pause();
+    remoteAudio.srcObject = null;
   }
 }
 
 // Button Listeners
-startBtn.addEventListener('click', async () => {
-  cleanupPeerConnection();
-
-  // User click action guarantees browser permits permission request
-  const stream = await initLocalMedia({ isUserAction: true });
-  if (!stream) {
-    // If user has not yet permitted or hardware unavailable, modal guides them
-    return;
-  }
-
-  // Unmute remoteVideo on user tap if autoplay was muted
-  if (remoteVideo) remoteVideo.muted = false;
-
-  setStatus('searching', 'Searching...');
-  if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Searching Liveza partner...';
-  if (placeholderText) placeholderText.textContent = 'Matching you with someone online right now!';
-  remotePlaceholder.style.display = 'flex';
-  startBtn.disabled = true;
-  nextBtn.disabled = false;
-  socket.emit('findMatch');
+startBtn.addEventListener('click', () => {
+  startFindingPartner(false);
 });
 
-nextBtn.addEventListener('click', async () => {
-  cleanupPeerConnection();
-
-  if (!localStream) {
-    const stream = await initLocalMedia({ isUserAction: true });
-    if (!stream) return;
-  }
-
-  if (remoteVideo) remoteVideo.muted = false;
-
-  setStatus('searching', 'Searching...');
-  if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Finding next match...';
-  if (placeholderText) placeholderText.textContent = 'Switching partner... Connecting now!';
-  remotePlaceholder.style.display = 'flex';
-  partnerTag.style.display = 'none';
-  socket.emit('nextPartner');
+nextBtn.addEventListener('click', () => {
+  if (nextCooldownSeconds > 0) return;
+  startFindingPartner(true);
 });
 
 socket.on('partnerMediaState', ({ videoEnabled, audioEnabled }) => {
@@ -792,4 +1029,26 @@ function enableDraggablePiP(cardEl, containerEl) {
 
 const localCard = document.getElementById('localCard');
 enableDraggablePiP(localCard, viewport);
+
+// Keyboard Shortcuts (Space: Start, Esc: Next, M: Mute Mic, V: Toggle Cam)
+window.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (permissionModal && permissionModal.style.display === 'flex') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (startBtn && !startBtn.disabled) {
+      startFindingPartner(false);
+    }
+  } else if (e.code === 'Escape') {
+    e.preventDefault();
+    if (nextBtn && !nextBtn.disabled && nextCooldownSeconds <= 0) {
+      startFindingPartner(true);
+    }
+  } else if (e.key === 'm' || e.key === 'M') {
+    if (micBtn) micBtn.click();
+  } else if (e.key === 'v' || e.key === 'V') {
+    if (camBtn) camBtn.click();
+  }
+});
 
