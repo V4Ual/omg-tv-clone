@@ -1012,6 +1012,79 @@ body {
   background: rgba(244, 63, 94, 0.4);
 }
 
+/* Real SVG Vector Icons for Controls */
+.btn-svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.icon-svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.icon-btn:hover .icon-svg {
+  transform: scale(1.12);
+}
+
+.icon-btn.off .mic-on-svg,
+.icon-btn.off .cam-on-svg {
+  display: none !important;
+}
+
+.icon-btn.off .mic-off-svg,
+.icon-btn.off .cam-off-svg {
+  display: block !important;
+}
+
+.radar-svg-icon {
+  width: 26px;
+  height: 26px;
+  stroke: #818cf8;
+  filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.6));
+  animation: radarIconPulse 2s infinite ease-in-out;
+}
+
+@keyframes radarIconPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 14px rgba(99, 102, 241, 0.9)); }
+}
+
+/* Autoplay Sound Unmute Floating Pill */
+.unmute-sound-badge {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 30px;
+  padding: 8px 14px;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(99, 102, 241, 0.35);
+  transition: all 0.2s ease;
+  animation: pulsePrompt 2s infinite ease-in-out;
+}
+
+.unmute-sound-badge:hover {
+  background: rgba(99, 102, 241, 0.9);
+  transform: scale(1.05);
+}
+
 /* ============================================================
    Responsive Design & Mobile Phone Viewports
    ============================================================ */

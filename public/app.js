@@ -30,15 +30,29 @@ const dismissPermissionBtn = document.getElementById('dismissPermissionBtn');
 const closePermissionModal = document.getElementById('closePermissionModal');
 const localCamPrompt = document.getElementById('localCamPrompt');
 const inAppBrowserHint = document.getElementById('inAppBrowserHint');
+const unmuteSoundBtn = document.getElementById('unmuteSoundBtn');
+
+if (unmuteSoundBtn) {
+  unmuteSoundBtn.addEventListener('click', () => {
+    if (remoteVideo) {
+      remoteVideo.muted = false;
+      remoteVideo.play().catch((e) => console.log('Unmute play error:', e));
+    }
+    unmuteSoundBtn.style.display = 'none';
+  });
+}
 
 let localStream = null;
 let peerConnection = null;
 let currentPartnerId = null;
 let pendingCandidates = [];
+let signalQueue = [];
+let isPeerReady = false;
+let isMakingOffer = false;
 let micEnabled = true;
 let camEnabled = true;
 
-// WebRTC Configuration with STUN Servers
+// High-Availability WebRTC Configuration with Global STUN & Open TURN Relays
 const rtcConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -46,9 +60,21 @@ const rtcConfig = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
-    { urls: 'stun:stun.services.mozilla.com' }
-  ]
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:openrelay.metered.ca:80' },
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp'
+      ],
+      username: 'openrelay',
+      credential: 'openrelay'
+    }
+  ],
+  iceCandidatePoolSize: 10,
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require'
 };
 
 // Floating Emoji Animation Generator
@@ -342,30 +368,43 @@ socket.on('partnerLeft', ({ message }) => {
   if (quickReactions) quickReactions.style.display = 'none';
 });
 
-// Signaling Messages Handling
+// Signaling Messages Handling with Buffered Queue (prevents race conditions)
 socket.on('signal', async ({ from, signal }) => {
   if (signal.emoji) {
     triggerFloatingEmoji(signal.emoji);
     return;
   }
 
-  if (!peerConnection || (currentPartnerId && from !== currentPartnerId)) {
-    console.warn('Ignoring signal from non-matched partner:', from);
+  if (currentPartnerId && from !== currentPartnerId) {
+    console.warn('[WebRTC] Ignoring signal from mismatch partner:', from);
     return;
   }
 
+  // If peer connection is initializing, buffer the signal so it is NEVER lost
+  if (!peerConnection || !isPeerReady) {
+    console.log('[WebRTC] Buffering signal because peerConnection is initializing:', signal.sdp ? signal.sdp.type : 'candidate');
+    signalQueue.push({ from, signal });
+    return;
+  }
+
+  await handleIncomingSignal(from, signal);
+});
+
+async function handleIncomingSignal(from, signal) {
+  if (!peerConnection || (currentPartnerId && from !== currentPartnerId)) return;
+
   try {
     if (signal.sdp) {
-      console.log('Received SDP signal:', signal.sdp.type, 'from:', from);
+      console.log('[WebRTC] Processing SDP:', signal.sdp.type, 'from:', from);
       await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
 
-      // Process buffered ICE candidates
+      // Flush buffered ICE candidates
       while (pendingCandidates.length > 0) {
         const candidate = pendingCandidates.shift();
         try {
           await peerConnection.addIceCandidate(candidate);
         } catch (e) {
-          console.warn('Error adding buffered candidate:', e);
+          console.warn('[WebRTC] Error adding buffered candidate:', e);
         }
       }
 
@@ -383,63 +422,68 @@ socket.on('signal', async ({ from, signal }) => {
       }
     }
   } catch (err) {
-    console.error('Error handling signal:', err);
+    console.error('[WebRTC] Error handling signal:', err);
   }
-});
+}
 
 // PeerConnection Handler for Mobile & Desktop Video Streaming
 async function setupPeerConnection(partnerId, isInitiator) {
   cleanupPeerConnection();
   currentPartnerId = partnerId;
+  isPeerReady = false;
   pendingCandidates = [];
+  signalQueue = [];
 
-  // Ensure local media is ready before adding tracks
-  if (!localStream) {
-    await initLocalMedia({ isUserAction: true });
-  }
-
+  // 1. Immediately create RTCPeerConnection instance so incoming signals have a target
   peerConnection = new RTCPeerConnection(rtcConfig);
 
-  // Add local audio and video tracks
+  // 2. Add local audio and video tracks if already available
   if (localStream) {
     localStream.getTracks().forEach((track) => {
-      peerConnection.addTrack(track, localStream);
+      try {
+        peerConnection.addTrack(track, localStream);
+      } catch (e) {
+        console.warn('[WebRTC] Track add error:', e);
+      }
     });
   }
 
-  // Handle Incoming Remote Audio & Video Tracks
+  // 3. Handle Incoming Remote Audio & Video Tracks
   peerConnection.ontrack = (event) => {
     console.log('[ontrack] Received remote track:', event.track.kind, event.streams);
 
-    let stream = remoteVideo.srcObject;
-    if (!stream || !(stream instanceof MediaStream)) {
-      stream = event.streams && event.streams[0] ? event.streams[0] : new MediaStream();
-      remoteVideo.srcObject = stream;
+    if (event.streams && event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+    } else {
+      let stream = remoteVideo.srcObject;
+      if (!stream || !(stream instanceof MediaStream)) {
+        stream = new MediaStream();
+        remoteVideo.srcObject = stream;
+      }
+      if (!stream.getTracks().includes(event.track)) {
+        stream.addTrack(event.track);
+      }
     }
 
-    if (!stream.getTracks().includes(event.track)) {
-      stream.addTrack(event.track);
-    }
-
-    // Hide waiting placeholder and display partner tag
-    remotePlaceholder.style.display = 'none';
-    partnerTag.style.display = 'flex';
+    // Instantly hide waiting placeholder & show partner indicators
+    if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+    if (partnerTag) partnerTag.style.display = 'flex';
     if (quickReactions) quickReactions.style.display = 'flex';
 
-    // Play video with autoplay error handling fallback for mobile devices
+    // Play video with autoplay fallback for mobile devices
     const playPromise = remoteVideo.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
         console.warn('Autoplay blocked on mobile, muting video temporarily to force play:', err);
         remoteVideo.muted = true;
         remoteVideo.play().then(() => {
-          remoteVideo.muted = false; // Unmute after play starts
+          if (unmuteSoundBtn) unmuteSoundBtn.style.display = 'flex';
         }).catch((e) => console.error('Play failed after mute retry:', e));
       });
     }
   };
 
-  // Send local ICE candidates to remote partner
+  // 4. Send local ICE candidates to remote partner
   peerConnection.onicecandidate = (event) => {
     if (event.candidate && currentPartnerId === partnerId) {
       socket.emit('signal', {
@@ -449,13 +493,60 @@ async function setupPeerConnection(partnerId, isInitiator) {
     }
   };
 
-  peerConnection.oniceconnectionstatechange = () => {
-    console.log('ICE Connection State:', peerConnection ? peerConnection.iceConnectionState : 'closed');
+  // 5. Connection recovery & ICE restart
+  peerConnection.oniceconnectionstatechange = async () => {
+    const state = peerConnection ? peerConnection.iceConnectionState : 'closed';
+    console.log('[WebRTC] ICE Connection State:', state);
+    if (state === 'failed' && isInitiator && currentPartnerId === partnerId) {
+      console.log('[WebRTC] ICE failed, attempting restart...');
+      try {
+        if (peerConnection.restartIce) {
+          peerConnection.restartIce();
+        }
+        const offer = await peerConnection.createOffer({ iceRestart: true });
+        await peerConnection.setLocalDescription(offer);
+        socket.emit('signal', { to: partnerId, signal: { sdp: peerConnection.localDescription } });
+      } catch (err) {
+        console.warn('ICE restart error:', err);
+      }
+    }
   };
 
-  // If initiator, create and send SDP offer
-  if (isInitiator) {
+  peerConnection.onconnectionstatechange = () => {
+    const state = peerConnection ? peerConnection.connectionState : 'closed';
+    console.log('[WebRTC] Connection State:', state);
+    if (state === 'connected') {
+      if (remotePlaceholder) remotePlaceholder.style.display = 'none';
+      if (partnerTag) partnerTag.style.display = 'flex';
+    }
+  };
+
+  // Ensure local media is ready; if not, initialize and add tracks
+  if (!localStream) {
+    const stream = await initLocalMedia({ isUserAction: true });
+    if (stream && peerConnection && currentPartnerId === partnerId) {
+      stream.getTracks().forEach((track) => {
+        try {
+          peerConnection.addTrack(track, stream);
+        } catch (_) {}
+      });
+    }
+  }
+
+  isPeerReady = true;
+
+  // Process any buffered incoming signals that arrived during initialization
+  while (signalQueue.length > 0) {
+    const queued = signalQueue.shift();
+    if (queued.from === currentPartnerId) {
+      await handleIncomingSignal(queued.from, queued.signal);
+    }
+  }
+
+  // If initiator, generate SDP offer now that peer is fully ready
+  if (isInitiator && currentPartnerId === partnerId) {
     try {
+      isMakingOffer = true;
       const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
@@ -467,13 +558,17 @@ async function setupPeerConnection(partnerId, isInitiator) {
       });
     } catch (err) {
       console.error('Error creating SDP offer:', err);
+    } finally {
+      isMakingOffer = false;
     }
   }
 }
 
 function cleanupPeerConnection() {
   currentPartnerId = null;
+  isPeerReady = false;
   pendingCandidates = [];
+  signalQueue = [];
 
   if (remoteCamOff) {
     remoteCamOff.style.display = 'none';
@@ -483,14 +578,21 @@ function cleanupPeerConnection() {
     quickReactions.style.display = 'none';
   }
 
+  if (unmuteSoundBtn) {
+    unmuteSoundBtn.style.display = 'none';
+  }
+
   if (peerConnection) {
     peerConnection.onicecandidate = null;
     peerConnection.ontrack = null;
     peerConnection.oniceconnectionstatechange = null;
+    peerConnection.onconnectionstatechange = null;
     peerConnection.close();
     peerConnection = null;
   }
-  remoteVideo.srcObject = null;
+  if (remoteVideo) {
+    remoteVideo.srcObject = null;
+  }
 }
 
 // Button Listeners
@@ -542,7 +644,7 @@ socket.on('partnerMediaState', ({ videoEnabled, audioEnabled }) => {
   }
 });
 
-// Mic & Cam Toggle Controls
+// Mic & Cam Toggle Controls (Clean SVG toggling via .off class)
 micBtn.addEventListener('click', async () => {
   if (!localStream) {
     await initLocalMedia({ isUserAction: true });
@@ -551,7 +653,6 @@ micBtn.addEventListener('click', async () => {
   micEnabled = !micEnabled;
   localStream.getAudioTracks().forEach((t) => (t.enabled = micEnabled));
   micBtn.classList.toggle('off', !micEnabled);
-  micBtn.querySelector('span').textContent = micEnabled ? '🎙️' : '🔇';
   socket.emit('mediaStateChange', { videoEnabled: camEnabled, audioEnabled: micEnabled });
 });
 
@@ -563,7 +664,6 @@ camBtn.addEventListener('click', async () => {
   camEnabled = !camEnabled;
   localStream.getVideoTracks().forEach((t) => (t.enabled = camEnabled));
   camBtn.classList.toggle('off', !camEnabled);
-  camBtn.querySelector('span').textContent = camEnabled ? '📹' : '📷';
 
   if (localCamOff) {
     localCamOff.style.display = camEnabled ? 'none' : 'flex';

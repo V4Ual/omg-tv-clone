@@ -4,7 +4,7 @@
   "description": "Liveza.fun - SFU & WebRTC Random Live Video Chat App",
   "main": "src/server.js",
   "scripts": {
-    "start": "node  src/server.js",
+    "start": "node --watch  src/server.js",
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
