@@ -17,6 +17,8 @@ const localCamOff = document.getElementById('localCamOff');
 const remoteCamOff = document.getElementById('remoteCamOff');
 const placeholderHeading = document.getElementById('placeholderHeading');
 const viewport = document.querySelector('.viewport');
+const quickReactions = document.getElementById('quickReactions');
+const reactionsContainer = document.getElementById('reactionsContainer');
 
 let localStream = null;
 let peerConnection = null;
@@ -38,13 +40,47 @@ const rtcConfig = {
   ]
 };
 
+// Floating Emoji Animation Generator
+function triggerFloatingEmoji(emoji) {
+  if (!reactionsContainer) return;
+  const el = document.createElement('div');
+  el.className = 'floating-emoji';
+  el.textContent = emoji;
+  
+  // Random horizontal position within 20% to 80%
+  const randomLeft = 20 + Math.random() * 60;
+  el.style.left = `${randomLeft}%`;
+  
+  reactionsContainer.appendChild(el);
+  setTimeout(() => {
+    if (el && el.parentNode) {
+      el.parentNode.removeChild(el);
+    }
+  }, 2200);
+}
+
+// Attach Quick Emoji Reaction Button Listeners
+if (quickReactions) {
+  quickReactions.querySelectorAll('.reaction-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const emoji = btn.getAttribute('data-emoji');
+      if (!emoji) return;
+      triggerFloatingEmoji(emoji);
+
+      if (currentPartnerId) {
+        socket.emit('signal', { to: currentPartnerId, signal: { emoji } });
+      }
+    });
+  });
+}
+
 // Initialize Camera & Microphone with Mobile & Desktop Fallbacks
 async function initLocalMedia() {
   if (localStream) return localStream;
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     console.error('[Media Error] Camera permission requires HTTPS or Localhost on mobile browsers!');
-    alert('⚠️ कैमरा सुरक्षा नियम:\n\nमोबाइल फ़ोन पर कैमरा एक्सेस करने के लिए HTTPS कनेक्शन या Localhost आवश्यक है।\n\n(Camera permission requires HTTPS connection on mobile browsers. If testing over IP, please use HTTPS or VS Code DevTunnels/ngrok).');
+    alert('⚠️ Liveza Security Notice:\n\nCamera & Microphone access requires HTTPS connection on mobile devices or localhost.\n\n(If testing locally across devices, please use HTTPS or a tunnel service).');
     return null;
   }
 
@@ -70,7 +106,7 @@ async function initLocalMedia() {
     localVideo.play().catch((e) => console.log('Local video play error:', e));
     return localStream;
   } else {
-    alert('Please allow Camera and Microphone permissions to start video chat.');
+    alert('Please grant Camera and Microphone permissions to chat on Liveza.fun.');
     return null;
   }
 }
@@ -86,7 +122,7 @@ function setStatus(state, message) {
 
 // Socket Events
 socket.on('connect', () => {
-  console.log('Connected to signaling server:', socket.id);
+  console.log('Connected to Liveza server:', socket.id);
   setStatus('idle', 'Ready');
 });
 
@@ -97,11 +133,13 @@ socket.on('userCount', ({ count }) => {
 });
 
 socket.on('matched', async ({ roomId, partnerId, isInitiator }) => {
-  console.log(`Matched in room ${roomId} with partner ${partnerId}, initiator: ${isInitiator}`);
+  console.log(`Matched on Liveza in room ${roomId} with partner ${partnerId}, initiator: ${isInitiator}`);
   setStatus('connected', 'Connected');
   if (viewport) viewport.classList.remove('searching');
   nextBtn.disabled = false;
   startBtn.disabled = true;
+
+  if (quickReactions) quickReactions.style.display = 'flex';
 
   await setupPeerConnection(partnerId, isInitiator);
 });
@@ -111,14 +149,20 @@ socket.on('partnerLeft', ({ message }) => {
   cleanupPeerConnection();
   setStatus('searching', 'Searching...');
   if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Searching for partner...';
-  placeholderText.textContent = 'Please wait! Connecting you to a new person...';
+  if (placeholderHeading) placeholderHeading.textContent = 'Searching Liveza network...';
+  if (placeholderText) placeholderText.textContent = 'Connecting you to a new person worldwide...';
   remotePlaceholder.style.display = 'flex';
   partnerTag.style.display = 'none';
+  if (quickReactions) quickReactions.style.display = 'none';
 });
 
 // Signaling Messages Handling
 socket.on('signal', async ({ from, signal }) => {
+  if (signal.emoji) {
+    triggerFloatingEmoji(signal.emoji);
+    return;
+  }
+
   if (!peerConnection || (currentPartnerId && from !== currentPartnerId)) {
     console.warn('Ignoring signal from non-matched partner:', from);
     return;
@@ -192,6 +236,7 @@ async function setupPeerConnection(partnerId, isInitiator) {
     // Hide waiting placeholder and display partner tag
     remotePlaceholder.style.display = 'none';
     partnerTag.style.display = 'flex';
+    if (quickReactions) quickReactions.style.display = 'flex';
 
     // Play video with autoplay error handling fallback for mobile devices
     const playPromise = remoteVideo.play();
@@ -246,6 +291,10 @@ function cleanupPeerConnection() {
     remoteCamOff.style.display = 'none';
   }
 
+  if (quickReactions) {
+    quickReactions.style.display = 'none';
+  }
+
   if (peerConnection) {
     peerConnection.onicecandidate = null;
     peerConnection.ontrack = null;
@@ -266,8 +315,8 @@ startBtn.addEventListener('click', async () => {
 
   setStatus('searching', 'Searching...');
   if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Searching for partner...';
-  placeholderText.textContent = 'Finding an online partner...';
+  if (placeholderHeading) placeholderHeading.textContent = 'Searching Liveza partner...';
+  if (placeholderText) placeholderText.textContent = 'Matching you with someone online right now!';
   remotePlaceholder.style.display = 'flex';
   startBtn.disabled = true;
   nextBtn.disabled = false;
@@ -282,8 +331,8 @@ nextBtn.addEventListener('click', async () => {
 
   setStatus('searching', 'Searching...');
   if (viewport) viewport.classList.add('searching');
-  if (placeholderHeading) placeholderHeading.textContent = 'Searching for next match...';
-  placeholderText.textContent = 'Switching partner... Connecting now!';
+  if (placeholderHeading) placeholderHeading.textContent = 'Finding next match...';
+  if (placeholderText) placeholderText.textContent = 'Switching partner... Connecting now!';
   remotePlaceholder.style.display = 'flex';
   partnerTag.style.display = 'none';
   socket.emit('nextPartner');
@@ -323,7 +372,7 @@ camBtn.addEventListener('click', () => {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      console.log('[PWA] ServiceWorker registered:', reg.scope);
+      console.log('[PWA] Liveza ServiceWorker registered:', reg.scope);
     }).catch((err) => {
       console.error('[PWA] ServiceWorker error:', err);
     });

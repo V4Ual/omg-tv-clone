@@ -3,107 +3,226 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>OmgTime - Live Video Chat</title>
+  
+  <!-- Primary Meta Tags -->
+  <title>Liveza.fun — Instant Live Random Video Chat</title>
+  <meta name="title" content="Liveza.fun — Instant Live Random Video Chat" />
+  <meta name="description" content="Meet people instantly across the world on Liveza.fun. High-definition 1-on-1 WebRTC live video matching with zero latency, end-to-end security, and crystal-clear audio." />
+  <meta name="keywords" content="liveza, liveza.fun, random video chat, omegle alternative, ometv alternative, instant video call, free video chat, webrtc live chat" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://liveza.fun/" />
+  <meta property="og:title" content="Liveza.fun — Instant Live Random Video Chat" />
+  <meta property="og:description" content="Connect instantly with friendly people worldwide. Fast, secure, HD random video calls." />
+  <meta property="og:image" content="https://liveza.fun/banner.png" />
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://liveza.fun/" />
+  <meta property="twitter:title" content="Liveza.fun — Instant Live Random Video Chat" />
+  <meta property="twitter:description" content="Connect instantly with friendly people worldwide. Fast, secure, HD random video calls." />
+
+  <link rel="canonical" href="https://liveza.fun/" />
+  
+  <!-- Google Fonts: Inter & Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
-  <meta name="theme-color" content="#070a12" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <meta name="theme-color" content="#060813" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="OmgTime" />
+  <meta name="apple-mobile-web-app-title" content="Liveza" />
+  
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
+  <!-- Ambient background glow particles / decorative elements -->
+  <div class="ambient-glow glow-top"></div>
+  <div class="ambient-glow glow-bottom"></div>
+
   <div class="app-wrapper">
-    <!-- Top Glass Navbar -->
+    <!-- Top Glass Navigation Bar -->
     <header class="navbar">
       <div class="logo-group">
         <div class="logo-icon-bg">
-          <span class="logo-icon">⚡</span>
+          <svg class="brand-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" fill="url(#brandGrad)" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="brandGrad" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#38bdf8"/>
+                <stop offset="0.5" stop-color="#818cf8"/>
+                <stop offset="1" stop-color="#c084fc"/>
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
-        <span class="logo-title">OmgTime<span class="logo-accent">.live</span></span>
+        <div class="logo-text-wrapper">
+          <div class="logo-title-row">
+            <span class="logo-title">Liveza</span>
+            <span class="logo-domain-badge">.fun</span>
+            <span class="logo-live-pill">PRO HD</span>
+          </div>
+          <span class="logo-subtitle">GLOBAL RANDOM VIDEO NETWORK</span>
+        </div>
       </div>
 
       <div class="header-right">
-        <button class="pwa-install-btn" id="installBtn" style="display: none;">
-          <span>📲 Install App</span>
-        </button>
-
+        <!-- Live Online Counter Badge -->
         <div class="online-badge">
           <span class="pulse-green"></span>
           <span id="onlineCount">1 Online</span>
         </div>
+
+        <!-- Connection Status Indicator -->
+        <div class="status-badge idle" id="statusBadge">
+          <span class="status-dot"></span>
+          <span id="statusText">Ready</span>
+        </div>
+
+        <!-- Install PWA Button -->
+        <button class="pwa-install-btn" id="installBtn" style="display: none;" title="Install App">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <span>Install</span>
+        </button>
       </div>
     </header>
 
-    <!-- Main Viewport -->
+    <!-- Main Live Stream Viewport -->
     <main class="viewport">
-      <!-- Remote Partner Stream Card -->
+      <!-- Floating Emoji Reactions Canvas Overlay -->
+      <div class="reactions-overlay" id="reactionsContainer"></div>
+
+      <!-- Remote Partner Stream Stage -->
       <div class="video-card remote-card" id="remoteCard">
         <video id="remoteVideo" autoplay playsinline webkit-playsinline></video>
         
-        <!-- Placeholder / Waiting state -->
+        <!-- Animated Radar & Welcome Hero Placeholder -->
         <div class="video-placeholder" id="remotePlaceholder">
-          <div class="radar-container">
-            <div class="radar-ring r1"></div>
-            <div class="radar-ring r2"></div>
-            <div class="radar-center">
-              <span class="radar-icon">🌐</span>
+          <div class="radar-outer">
+            <div class="radar-container">
+              <div class="radar-sweep-beam"></div>
+              <div class="radar-ring r1"></div>
+              <div class="radar-ring r2"></div>
+              <div class="radar-ring r3"></div>
+              <div class="radar-ring r4"></div>
+              <div class="radar-orbit-dot od1"></div>
+              <div class="radar-orbit-dot od2"></div>
+              <div class="radar-center">
+                <span class="radar-icon">⚡</span>
+              </div>
             </div>
           </div>
-          <h2 class="placeholder-heading" id="placeholderHeading">Ready for Random Match?</h2>
-          <p class="placeholder-desc" id="placeholderText">Click <strong>"Start Matching"</strong> below to connect with new people!</p>
+
+          <div class="placeholder-content">
+            <h1 class="placeholder-heading" id="placeholderHeading">Meet Strangers Worldwide</h1>
+            <p class="placeholder-desc" id="placeholderText">
+              Press <strong>"Start Matching"</strong> to connect instantly in crystal-clear 1-on-1 live video chat.
+            </p>
+
+            <div class="feature-pills">
+              <div class="pill">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Encrypted SFU</span>
+              </div>
+              <div class="pill">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Ultra-Low Latency</span>
+              </div>
+              <div class="pill">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span>100% Free & Global</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Connected Partner Tag -->
+        <!-- Connected Partner Floating Tag -->
         <div class="partner-tag" id="partnerTag" style="display: none;">
+          <span class="tag-live-ring"></span>
           <span class="tag-dot"></span>
-          <span>Connected to Stranger</span>
+          <span class="tag-label">Matched on Liveza</span>
+          <span class="tag-quality-pill">HD 60FPS</span>
         </div>
 
-        <!-- Remote Camera Off Banner -->
+        <!-- Quick Floating Emoji Reaction Bar (Visible when connected) -->
+        <div class="quick-reactions" id="quickReactions" style="display: none;">
+          <button class="reaction-btn" data-emoji="👋" title="Wave">👋</button>
+          <button class="reaction-btn" data-emoji="❤️" title="Love">❤️</button>
+          <button class="reaction-btn" data-emoji="🔥" title="Lit">🔥</button>
+          <button class="reaction-btn" data-emoji="😂" title="Laugh">😂</button>
+          <button class="reaction-btn" data-emoji="🎉" title="Party">🎉</button>
+          <button class="reaction-btn" data-emoji="✨" title="Sparkle">✨</button>
+        </div>
+
+        <!-- Remote Partner Camera Paused / Turned Off State -->
         <div class="cam-off-overlay" id="remoteCamOff" style="display: none;">
-          <div class="cam-off-avatar">📷</div>
-          <p class="cam-off-title">Partner's camera is off</p>
+          <div class="cam-off-avatar">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </div>
+          <p class="cam-off-title">Partner paused their camera</p>
+          <span class="cam-off-hint">Audio is still connected</span>
         </div>
       </div>
 
-      <!-- Floating Local Self Preview (PiP) -->
+      <!-- Floating Picture-in-Picture Local Self Preview -->
       <div class="video-card local-card" id="localCard">
         <video id="localVideo" autoplay playsinline webkit-playsinline muted></video>
+        
         <div class="cam-off-overlay local-off" id="localCamOff" style="display: none;">
-          <span>📷 Camera Off</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="1" y1="1" x2="23" y2="23"/>
+            <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h4a2 2 0 0 1 2 2v9.34m-7.72-2.06a4 4 0 1 1-5.56-5.56"/>
+          </svg>
+          <span>Camera Off</span>
         </div>
+
         <div class="local-label">
-          <span class="user-badge-dot"></span> You
+          <span class="user-badge-dot"></span>
+          <span>You</span>
         </div>
       </div>
     </main>
 
-    <!-- Floating Dock Controls Bar -->
+    <!-- Floating Ergonomic Controls Dock Bar -->
     <footer class="controls-dock">
       <div class="controls-inner">
+        <!-- Main Primary Call to Action -->
         <button class="btn btn-primary" id="startBtn">
           <span class="btn-icon">✨</span>
-          <span>Start Matching</span>
+          <span class="btn-text">Start Matching</span>
+          <kbd class="key-hint">Space</kbd>
         </button>
 
+        <!-- Skip / Next Match Button -->
         <button class="btn btn-warning" id="nextBtn" disabled>
           <span class="btn-icon">⚡</span>
-          <span>Next Partner</span>
+          <span class="btn-text">Next Partner</span>
+          <kbd class="key-hint">Esc</kbd>
         </button>
 
         <div class="divider-line"></div>
 
+        <!-- Audio & Video Quick Toggles -->
         <div class="media-toggles">
-          <button class="icon-btn" id="micBtn" title="Mic On/Off">
+          <button class="icon-btn" id="micBtn" title="Toggle Microphone (M)">
             <span id="micIcon">🎙️</span>
+            <span class="btn-tooltip">Mic</span>
           </button>
-          <button class="icon-btn" id="camBtn" title="Camera On/Off">
+          <button class="icon-btn" id="camBtn" title="Toggle Camera (V)">
             <span id="camIcon">📹</span>
+            <span class="btn-tooltip">Cam</span>
           </button>
         </div>
       </div>

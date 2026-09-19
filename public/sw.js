@@ -1,4 +1,4 @@
-const CACHE_NAME = 'omgtime-v1';
+const CACHE_NAME = 'liveza-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

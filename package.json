@@ -1,7 +1,7 @@
 {
-  "name": "mediasoup-video-match-server",
+  "name": "liveza-video-chat",
   "version": "1.0.0",
-  "description": "Mediasoup SFU backend for random 1-on-1 video chat matching",
+  "description": "Liveza.fun - SFU & WebRTC Random Live Video Chat App",
   "main": "src/server.js",
   "scripts": {
     "start": "node  src/server.js",
