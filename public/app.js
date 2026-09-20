@@ -150,7 +150,7 @@ if (quickReactions) {
 // ============================================================
 // In-Call Real-Time Text Messaging System
 // ============================================================
-let isChatOpen = false;
+let isChatOpen = window.innerWidth >= 768;
 let chatUnreadCount = 0;
 let userTypingTimer = null;
 let partnerTypingTimer = null;
@@ -286,8 +286,8 @@ function setupChatForNewPartner() {
   if (chatSendBtn) chatSendBtn.disabled = false;
 
   addChatMessage('system', 'Connected with stranger! Say hi 👋');
-  // Keep chat minimized on mobile so video is 100% visible, open on large desktop
-  isChatOpen = window.innerWidth >= 1024;
+  // Keep chat minimized on mobile so video is 100% visible, open on desktop web view
+  isChatOpen = window.innerWidth >= 768;
   updateChatUIState();
 }
 
@@ -1248,6 +1248,7 @@ function enableDraggablePiP(cardEl, containerEl) {
   let initialTop = 0;
 
   function onPointerDown(e) {
+    if (window.innerWidth >= 768) return; // Desktop web viewer uses two-grid side-by-side; dragging only for mobile PiP
     if (e.button && e.button !== 0) return;
     isDragging = true;
     cardEl.classList.add('is-dragging');
@@ -1308,6 +1309,14 @@ function enableDraggablePiP(cardEl, containerEl) {
   cardEl.addEventListener('pointercancel', onPointerUp);
 
   window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) {
+      // Clear drag coordinates on desktop so two-grid stays clean
+      cardEl.style.left = '';
+      cardEl.style.top = '';
+      cardEl.style.right = '';
+      cardEl.style.bottom = '';
+      return;
+    }
     if (cardEl.style.left && cardEl.style.left !== 'auto') {
       const containerRect = containerEl.getBoundingClientRect();
       const cardRect = cardEl.getBoundingClientRect();

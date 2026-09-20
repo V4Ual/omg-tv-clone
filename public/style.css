@@ -114,7 +114,7 @@ body {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  max-width: 1400px;
+  max-width: 1650px;
   margin: 0 auto;
   width: 100%;
   padding: 12px 18px;
@@ -366,8 +366,17 @@ body {
 }
 
 /* ============================================================
-   Main Live Viewport
+   Main Stage Container & Live Viewport
    ============================================================ */
+.stage-container {
+  flex: 1;
+  display: flex;
+  position: relative;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 .viewport {
   flex: 1;
   min-height: 380px;
@@ -2582,4 +2591,139 @@ body {
 .duplicate-tab-card {
   border-color: rgba(245, 158, 11, 0.25) !important;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(245, 158, 11, 0.15) !important;
+}
+
+/* ============================================================
+   Desktop Web Viewer: Two-Grid Side-by-Side (Left & Right)
+   Only active on desktop screens (>= 768px).
+   Responsive mobile app view remains single full-screen with PiP.
+   ============================================================ */
+@media (min-width: 768px) {
+  .stage-container {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Right Sidebar: Real-Time Chat Panel (Freestanding outside viewport on the right) */
+  .chat-panel {
+    position: relative !important;
+    flex: 0 0 340px !important;
+    width: 340px !important;
+    min-width: 340px !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    border-radius: var(--radius-2xl) !important;
+    background: rgba(11, 16, 38, 0.88) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(0, 0, 0, 0.5) !important;
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.3s ease, margin 0.3s ease, opacity 0.25s ease !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 5 !important;
+    overflow: hidden !important;
+  }
+
+  /* Smooth right-side collapse when minimized */
+  .chat-panel.minimized {
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin-left: -14px !important;
+    margin-right: 0 !important;
+    border: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+
+  /* Main Viewport: Contains ONLY the 2-Grid Videos (Remote + Local) */
+  .viewport {
+    flex: 1 !important;
+    width: auto !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px !important;
+    padding: 10px !important;
+    align-items: stretch !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Left Video: Remote Partner / Viewer */
+  .remote-card {
+    position: relative !important;
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    height: 100% !important;
+    border-radius: var(--radius-xl) !important;
+    overflow: hidden !important;
+    background: radial-gradient(circle at center, #0c102a 0%, #040612 90%) !important;
+    border: 1.5px solid var(--glass-border) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(0, 0, 0, 0.4) !important;
+    transition: border-color 0.3s ease !important;
+  }
+
+  .remote-card:hover {
+    border-color: var(--glass-border-bright) !important;
+  }
+
+  /* Right Video: Local Self Stream */
+  .local-card {
+    position: relative !important;
+    flex: 1 1 50% !important;
+    width: 50% !important;
+    height: 100% !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    border-radius: var(--radius-xl) !important;
+    overflow: hidden !important;
+    background: radial-gradient(circle at center, #0d122e 0%, #040612 90%) !important;
+    border: 1.5px solid rgba(99, 102, 241, 0.35) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(0, 0, 0, 0.4) !important;
+    cursor: default !important;
+    touch-action: auto !important;
+    transform: none !important;
+    transition: border-color 0.3s ease !important;
+  }
+
+  .local-card:hover {
+    border-color: rgba(139, 92, 246, 0.6) !important;
+  }
+
+  .local-card video {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transform: scaleX(-1) !important;
+    z-index: 1 !important;
+    background-color: #04050e !important;
+  }
+
+  .local-label {
+    top: 18px !important;
+    left: 18px !important;
+    bottom: auto !important;
+    padding: 7px 16px !important;
+    font-size: 0.84rem !important;
+  }
 }
