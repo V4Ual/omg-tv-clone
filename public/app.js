@@ -21,6 +21,23 @@ const viewport = document.querySelector('.viewport');
 const quickReactions = document.getElementById('quickReactions');
 const reactionsContainer = document.getElementById('reactionsContainer');
 
+// Chat System Elements
+const chatPanel = document.getElementById('chatPanel');
+const chatMessages = document.getElementById('chatMessages');
+const chatEmptyState = document.getElementById('chatEmptyState');
+const chatChipsBar = document.getElementById('chatChipsBar');
+const chatForm = document.getElementById('chatForm');
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+const chatToggleBtn = document.getElementById('chatToggleBtn');
+const closeChatBtn = document.getElementById('closeChatBtn');
+const clearChatBtn = document.getElementById('clearChatBtn');
+const chatUnreadBadge = document.getElementById('chatUnreadBadge');
+const chatTypingStatus = document.getElementById('chatTypingStatus');
+const chatPartnerTitle = document.getElementById('chatPartnerTitle');
+const chatMessageToast = document.getElementById('chatMessageToast');
+const chatToastBody = document.getElementById('chatToastBody');
+
 // Disconnect Overlay Elements
 const partnerDisconnectOverlay = document.getElementById('partnerDisconnectOverlay');
 const disconnectCountdown = document.getElementById('disconnectCountdown');
@@ -129,6 +146,262 @@ if (quickReactions) {
     });
   });
 }
+
+// ============================================================
+// In-Call Real-Time Text Messaging System
+// ============================================================
+let isChatOpen = false;
+let chatUnreadCount = 0;
+let userTypingTimer = null;
+let partnerTypingTimer = null;
+let toastDismissTimer = null;
+
+function updateChatUIState() {
+  if (!chatPanel) return;
+  if (isChatOpen) {
+    chatPanel.classList.remove('minimized');
+    chatUnreadCount = 0;
+    updateUnreadBadge();
+    hideChatToast();
+    if (chatInput && !chatInput.disabled) {
+      setTimeout(() => chatInput.focus(), 80);
+    }
+  } else {
+    chatPanel.classList.add('minimized');
+  }
+}
+
+function updateUnreadBadge() {
+  if (!chatUnreadBadge) return;
+  if (chatUnreadCount > 0 && !isChatOpen) {
+    chatUnreadBadge.textContent = chatUnreadCount > 9 ? '9+' : chatUnreadCount;
+    chatUnreadBadge.style.display = 'flex';
+  } else {
+    chatUnreadBadge.style.display = 'none';
+  }
+}
+
+function showChatToast(text) {
+  if (!chatMessageToast || !chatToastBody || isChatOpen) return;
+  chatToastBody.textContent = text;
+  chatMessageToast.style.display = 'flex';
+  if (toastDismissTimer) clearTimeout(toastDismissTimer);
+  toastDismissTimer = setTimeout(() => {
+    hideChatToast();
+  }, 3500);
+}
+
+function hideChatToast() {
+  if (toastDismissTimer) {
+    clearTimeout(toastDismissTimer);
+    toastDismissTimer = null;
+  }
+  if (chatMessageToast) {
+    chatMessageToast.style.display = 'none';
+  }
+}
+
+function clearChatMessages() {
+  if (!chatMessages) return;
+  chatMessages.innerHTML = '';
+  if (chatEmptyState) {
+    chatMessages.appendChild(chatEmptyState);
+    chatEmptyState.style.display = 'flex';
+  }
+  chatUnreadCount = 0;
+  updateUnreadBadge();
+  hideChatToast();
+}
+
+function formatChatTime(timestamp) {
+  const d = timestamp ? new Date(timestamp) : new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function addChatMessage(type, text, timestamp = Date.now()) {
+  if (!chatMessages || !text) return;
+  if (chatEmptyState) {
+    chatEmptyState.style.display = 'none';
+  }
+
+  const row = document.createElement('div');
+  row.className = `msg-row ${type}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  row.appendChild(bubble);
+
+  if (type !== 'system') {
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    meta.textContent = `${type === 'self' ? 'You' : 'Stranger'} • ${formatChatTime(timestamp)}`;
+    row.appendChild(meta);
+  }
+
+  chatMessages.appendChild(row);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  if (type === 'partner') {
+    if (!isChatOpen) {
+      chatUnreadCount++;
+      updateUnreadBadge();
+      showChatToast(text);
+    }
+  }
+}
+
+function resetChatForNewSession(noticeText = null) {
+  // Clear previous partner messages so every new match starts fresh
+  clearChatMessages();
+  if (chatTypingStatus) chatTypingStatus.style.display = 'none';
+  if (chatChipsBar) chatChipsBar.style.display = 'none';
+  if (chatInput) {
+    chatInput.value = '';
+    chatInput.disabled = true;
+    chatInput.placeholder = 'Connect with a partner to chat...';
+  }
+  if (chatSendBtn) chatSendBtn.disabled = true;
+
+  if (noticeText) {
+    addChatMessage('system', noticeText);
+  }
+}
+
+function setupChatForNewPartner() {
+  // Ensure a clean slate for the newly connected partner
+  clearChatMessages();
+  if (chatTypingStatus) chatTypingStatus.style.display = 'none';
+  if (chatChipsBar) chatChipsBar.style.display = 'flex';
+  if (chatInput) {
+    chatInput.value = '';
+    chatInput.disabled = false;
+    chatInput.placeholder = 'Type a message to stranger...';
+  }
+  if (chatSendBtn) chatSendBtn.disabled = false;
+
+  addChatMessage('system', 'Connected with stranger! Say hi 👋');
+  updateChatUIState();
+}
+
+function handleChatPartnerLeft() {
+  if (chatTypingStatus) chatTypingStatus.style.display = 'none';
+  if (chatChipsBar) chatChipsBar.style.display = 'none';
+  if (chatInput) {
+    chatInput.disabled = true;
+    chatInput.placeholder = 'Stranger disconnected.';
+  }
+  if (chatSendBtn) chatSendBtn.disabled = true;
+
+  addChatMessage('system', 'Stranger has disconnected.');
+}
+
+function sendCurrentChatMessage() {
+  if (!chatInput) return;
+  const rawText = chatInput.value.trim();
+  if (!rawText || !currentPartnerId) return;
+
+  const text = rawText.slice(0, 1000);
+  socket.emit('chatMessage', { text });
+  addChatMessage('self', text, Date.now());
+
+  socket.emit('typing', { isTyping: false });
+  if (userTypingTimer) clearTimeout(userTypingTimer);
+
+  chatInput.value = '';
+  chatInput.focus();
+}
+
+// Attach In-Call Chat Listeners
+if (chatToggleBtn) {
+  chatToggleBtn.addEventListener('click', () => {
+    isChatOpen = !isChatOpen;
+    updateChatUIState();
+  });
+}
+
+if (closeChatBtn) {
+  closeChatBtn.addEventListener('click', () => {
+    isChatOpen = false;
+    updateChatUIState();
+  });
+}
+
+if (clearChatBtn) {
+  clearChatBtn.addEventListener('click', () => {
+    clearChatMessages();
+    addChatMessage('system', 'Chat history cleared.');
+  });
+}
+
+if (chatMessageToast) {
+  chatMessageToast.addEventListener('click', () => {
+    isChatOpen = true;
+    updateChatUIState();
+  });
+}
+
+if (chatForm) {
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendCurrentChatMessage();
+  });
+}
+
+if (chatInput) {
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendCurrentChatMessage();
+    }
+  });
+
+  chatInput.addEventListener('input', () => {
+    if (!currentPartnerId) return;
+    socket.emit('typing', { isTyping: true });
+    if (userTypingTimer) clearTimeout(userTypingTimer);
+    userTypingTimer = setTimeout(() => {
+      socket.emit('typing', { isTyping: false });
+    }, 1500);
+  });
+}
+
+if (chatChipsBar) {
+  chatChipsBar.querySelectorAll('.chat-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const text = chip.getAttribute('data-text');
+      if (text && currentPartnerId) {
+        socket.emit('chatMessage', { text });
+        addChatMessage('self', text, Date.now());
+      }
+    });
+  });
+}
+
+// Receive In-Call Chat Message
+socket.on('chatMessage', ({ from, text, timestamp }) => {
+  if (currentPartnerId && from && from !== currentPartnerId) {
+    return;
+  }
+  addChatMessage('partner', text, timestamp || Date.now());
+});
+
+// Partner Typing Indicator
+socket.on('partnerTyping', ({ isTyping }) => {
+  if (!chatTypingStatus) return;
+  if (isTyping) {
+    chatTypingStatus.style.display = 'flex';
+    if (partnerTypingTimer) clearTimeout(partnerTypingTimer);
+    partnerTypingTimer = setTimeout(() => {
+      chatTypingStatus.style.display = 'none';
+    }, 2500);
+  } else {
+    chatTypingStatus.style.display = 'none';
+  }
+});
+
+// Initialize chat panel state
+updateChatUIState();
 
 // In-App Browser Detection
 function isInAppBrowser() {
@@ -433,6 +706,7 @@ function handlePartnerLeft() {
   clearDisconnectTimer();
   clearNextCooldown();
   cleanupPeerConnection();
+  handleChatPartnerLeft();
 
   // Keep local stream & local video running smoothly!
   // Hide radar search placeholder so the page never looks like it refreshed/crashed
@@ -468,6 +742,7 @@ async function startFindingPartner(isNext = false) {
   if (partnerDisconnectOverlay) partnerDisconnectOverlay.style.display = 'none';
 
   cleanupPeerConnection();
+  resetChatForNewSession(isNext ? 'Switching to next partner...' : 'Searching for partner...');
 
   // Prime audio playback during user gesture to avoid browser autoplay blocks
   primeAudioContext();
@@ -525,6 +800,8 @@ socket.on('matched', async ({ roomId, partnerId, isInitiator }) => {
 
   // Start 5-second cooldown on next button to prevent spamming
   startNextCooldown();
+
+  setupChatForNewPartner();
 
   await setupPeerConnection(partnerId, isInitiator);
 });
@@ -1049,6 +1326,8 @@ window.addEventListener('keydown', (e) => {
     if (micBtn) micBtn.click();
   } else if (e.key === 'v' || e.key === 'V') {
     if (camBtn) camBtn.click();
+  } else if (e.key === 'c' || e.key === 'C') {
+    if (chatToggleBtn) chatToggleBtn.click();
   }
 });
 

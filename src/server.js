@@ -85,6 +85,29 @@ io.on('connection', (socket) => {
     }
   });
 
+  // In-Call Chat Messaging Relay
+  socket.on('chatMessage', ({ text }) => {
+    const partnerId = matchmaker.getPartnerId(socket.id);
+    if (partnerId && typeof text === 'string') {
+      const trimmed = text.trim().slice(0, 1000);
+      if (trimmed.length > 0) {
+        io.to(partnerId).emit('chatMessage', {
+          from: socket.id,
+          text: trimmed,
+          timestamp: Date.now()
+        });
+      }
+    }
+  });
+
+  // In-Call Typing Status Relay
+  socket.on('typing', ({ isTyping }) => {
+    const partnerId = matchmaker.getPartnerId(socket.id);
+    if (partnerId) {
+      io.to(partnerId).emit('partnerTyping', { isTyping: Boolean(isTyping) });
+    }
+  });
+
   // 4. Get Mediasoup Router RTP Capabilities
   socket.on('getRouterRtpCapabilities', async (data, callback) => {
     try {

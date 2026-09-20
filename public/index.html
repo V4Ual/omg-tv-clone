@@ -245,6 +245,74 @@
           <span>You</span>
         </div>
       </div>
+
+      <!-- In-Call Real-Time Chat Drawer / Panel -->
+      <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <span class="chat-header-dot"></span>
+            <div class="chat-header-text">
+              <span class="chat-title" id="chatPartnerTitle">Stranger</span>
+              <span class="chat-typing-status" id="chatTypingStatus" style="display: none;">
+                <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span> typing...
+              </span>
+            </div>
+          </div>
+          <div class="chat-header-actions">
+            <button class="chat-action-btn" id="clearChatBtn" title="Clear Chat History" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+            <button class="chat-action-btn" id="closeChatBtn" title="Minimize Chat" type="button">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty-state" id="chatEmptyState">
+            <div class="chat-empty-icon">💬</div>
+            <p>Start a video match to chat with strangers in real-time!</p>
+          </div>
+        </div>
+
+        <!-- Quick Chat Chips (e.g. Hey! / Where are you from?) -->
+        <div class="chat-chips-bar" id="chatChipsBar" style="display: none;">
+          <button class="chat-chip" type="button" data-text="Hey! 👋">Hey! 👋</button>
+          <button class="chat-chip" type="button" data-text="Where are you from? 🌍">Where are you from? 🌍</button>
+          <button class="chat-chip" type="button" data-text="Nice to meet you! ✨">Nice to meet you! ✨</button>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form class="chat-input-bar" id="chatForm" autocomplete="off">
+          <input 
+            type="text" 
+            class="chat-input" 
+            id="chatInput" 
+            placeholder="Type a message..." 
+            maxlength="1000" 
+            disabled 
+          />
+          <button type="submit" class="chat-send-btn" id="chatSendBtn" disabled title="Send Message">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </div>
+
+      <!-- Floating In-Call Chat Message Toast (when panel is minimized) -->
+      <div class="chat-message-toast" id="chatMessageToast" style="display: none;">
+        <div class="toast-sender">Stranger</div>
+        <div class="toast-body" id="chatToastBody"></div>
+      </div>
     </main>
 
     <!-- Floating Ergonomic Controls Dock Bar -->
@@ -274,7 +342,7 @@
 
         <div class="divider-line"></div>
 
-        <!-- Audio & Video Quick Toggles -->
+        <!-- Audio, Video & Chat Quick Toggles -->
         <div class="media-toggles">
           <button class="icon-btn" id="micBtn" title="Toggle Microphone (M)">
             <svg class="icon-svg mic-on-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -302,6 +370,13 @@
               <line x1="1" y1="1" x2="23" y2="23"></line>
             </svg>
             <span class="btn-tooltip">Cam</span>
+          </button>
+          <button class="icon-btn" id="chatToggleBtn" title="Toggle Chat (C)">
+            <svg class="icon-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="chat-unread-badge" id="chatUnreadBadge" style="display: none;">0</span>
+            <span class="btn-tooltip">Chat</span>
           </button>
         </div>
       </div>
