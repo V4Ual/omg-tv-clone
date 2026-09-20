@@ -917,6 +917,12 @@ body {
   transform: scaleX(-1); /* Mirror self preview for natural feel */
 }
 
+.cam-off-overlay,
+.cam-permission-overlay,
+.local-label {
+  transform: none !important;
+}
+
 .cam-off-overlay.local-off {
   background: #0c1024;
   font-size: 0.82rem;
@@ -1391,30 +1397,45 @@ body {
     font-size: 1.05rem;
   }
 
-  /* Dock Controls Bar - Never clips buttons */
+  /* Dock Controls Bar - Ergonomically managed for mobile screens */
   .controls-dock {
     padding: 2px 0 max(4px, env(safe-area-inset-bottom)) 0;
     width: 100%;
   }
 
+  /* ============================================================
+     Sleek Mobile Dock Bar (Single Unified Row)
+     ============================================================ */
+  .controls-dock {
+    padding: 0 0 max(4px, env(safe-area-inset-bottom)) 0;
+    width: 100%;
+  }
+
   .controls-inner {
-    padding: 8px 10px;
-    gap: 8px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    gap: 6px;
+    height: 52px;
     border-radius: var(--radius-xl);
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
   }
 
-  .btn {
+  #startBtn,
+  #nextBtn {
     flex: 1 1 0;
     min-width: 0;
+    height: 40px;
+    padding: 0 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
     justify-content: center;
-    padding: 11px 8px;
-    font-size: 0.84rem;
-    gap: 6px;
     border-radius: var(--radius-md);
-    overflow: hidden;
+    gap: 4px;
   }
 
   .btn-text {
@@ -1423,40 +1444,55 @@ body {
     text-overflow: ellipsis;
   }
 
+  .btn-word-main {
+    display: inline !important;
+  }
+
+  .btn-word-sub {
+    display: none !important;
+  }
+
   .key-hint {
-    display: none;
+    display: none !important;
   }
 
   .btn-icon {
-    font-size: 1.1rem;
+    font-size: 1rem;
     flex-shrink: 0;
   }
 
   .divider-line {
-    height: 26px;
+    width: 1px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.12);
     margin: 0 1px;
     flex-shrink: 0;
+    display: block !important;
   }
 
   .media-toggles {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-shrink: 0;
   }
 
   .icon-btn {
-    width: 42px;
-    height: 42px;
-    min-width: 42px;
-    min-height: 42px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
     flex-shrink: 0;
-    font-size: 1.15rem;
+    font-size: 1rem;
     border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .btn-tooltip {
-    display: none;
+    display: none !important;
   }
 }
 
@@ -1538,28 +1574,29 @@ body {
     border-radius: 12px;
   }
 
-  /* Shorten text cleanly on mobile phones so camera & mic buttons never get pushed off */
-  .btn-word-sub {
-    display: none;
-  }
-
   .controls-inner {
-    padding: 6px 8px;
-    gap: 6px;
+    padding: 5px 6px;
+    gap: 4px;
+    height: 50px;
   }
 
-  .btn {
-    padding: 10px 6px;
-    font-size: 0.82rem;
-    gap: 5px;
+  #startBtn,
+  #nextBtn {
+    height: 38px;
+    padding: 0 6px;
+    font-size: 0.78rem;
+    gap: 3px;
+  }
+
+  .media-toggles {
+    gap: 4px;
   }
 
   .icon-btn {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
-    font-size: 1.05rem;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   .quick-reactions {
@@ -1620,30 +1657,28 @@ body {
   }
 
   .controls-inner {
-    padding: 5px 6px;
-    gap: 4px;
+    padding: 4px 5px;
+    gap: 3px;
+    height: 48px;
   }
 
-  .btn {
-    padding: 9px 4px;
-    font-size: 0.76rem;
-    gap: 4px;
-  }
-
-  .btn-icon {
-    font-size: 0.95rem;
+  #startBtn,
+  #nextBtn {
+    height: 36px;
+    padding: 0 4px;
+    font-size: 0.74rem;
+    gap: 2px;
   }
 
   .media-toggles {
-    gap: 4px;
+    gap: 3px;
   }
 
   .icon-btn {
-    width: 35px;
-    height: 35px;
-    min-width: 35px;
-    min-height: 35px;
-    font-size: 0.95rem;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
   }
 
   .reaction-btn {
@@ -2411,14 +2446,140 @@ body {
   white-space: nowrap;
 }
 
-/* Responsive Overrides */
-@media (max-width: 600px) {
-  .chat-panel {
-    bottom: 10px;
-    right: 10px;
-    left: 10px;
-    width: auto;
-    max-width: none;
-    height: 320px;
+/* ============================================================
+   Production Mobile Chat Experience (Drawer & Floating Preview)
+   ============================================================ */
+@media (max-width: 768px) {
+  /* When chat is active on mobile, hide the bottom dock so space is managed properly */
+  .app-wrapper.chat-active .controls-dock {
+    display: none !important;
   }
+
+  .app-wrapper.chat-active .viewport {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chat-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 230px;
+    max-height: 48%;
+    background: linear-gradient(180deg, rgba(12, 17, 40, 0.88) 0%, rgba(6, 9, 24, 0.96) 100%);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.75);
+    z-index: 25;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  }
+
+  .chat-panel::before {
+    content: '';
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 6px auto 2px auto;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .chat-panel.minimized {
+    transform: translateY(100%) !important;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .chat-header {
+    padding: 4px 12px 6px 12px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .chat-title {
+    font-size: 0.88rem;
+  }
+
+  .chat-messages {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .msg-bubble {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    max-width: 90%;
+  }
+
+  .msg-meta {
+    font-size: 0.6rem;
+  }
+
+  .chat-chips-bar {
+    padding: 4px 8px;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .chat-chip {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    border-radius: 12px;
+  }
+
+  .chat-input-bar {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .chat-input {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    height: 34px;
+  }
+
+  .chat-send-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Live Stream Floating Message Preview */
+  .chat-message-toast {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    transform: none !important;
+    max-width: calc(100% - 24px);
+    background: rgba(10, 16, 38, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    padding: 6px 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(99, 102, 241, 0.3);
+    z-index: 22;
+    cursor: pointer;
+    font-size: 0.78rem;
+  }
+}
+
+/* ============================================================
+   Single Tab Enforcement Overlay Styling
+   ============================================================ */
+.modal-icon-badge.warning-badge {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: #fbbf24 !important;
+}
+
+.duplicate-tab-card {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(245, 158, 11, 0.15) !important;
 }

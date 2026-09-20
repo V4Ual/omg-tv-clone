@@ -450,6 +450,45 @@
     </div>
   </div>
 
+  <!-- Single Tab Enforcement Modal (Auto-disables previous tab when new tab opens) -->
+  <div class="modal-backdrop" id="duplicateTabModal" style="display: none; z-index: 100;">
+    <div class="modal-card duplicate-tab-card">
+      <div class="modal-header">
+        <div class="modal-icon-badge warning-badge">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div class="modal-header-text">
+          <h2>Liveza Open in Another Tab</h2>
+          <p>Session moved to new tab</p>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="instructions-card">
+          <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; margin-bottom: 8px;">
+            You opened Liveza in another browser tab. To prevent webcam conflicts, Liveza only streams in one tab at a time.
+          </p>
+          <div class="step-item" style="margin-top: 10px;">
+            <div class="step-num">💡</div>
+            <div class="step-text">
+              Click <strong>"Use Here"</strong> to resume video chat in this tab.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary modal-action-btn" id="claimTabBtn" style="justify-content: center;">
+          <span>🔄 Use Here</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

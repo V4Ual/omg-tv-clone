@@ -119,11 +119,11 @@ function triggerFloatingEmoji(emoji) {
   const el = document.createElement('div');
   el.className = 'floating-emoji';
   el.textContent = emoji;
-  
+
   // Random horizontal position within 20% to 80%
   const randomLeft = 20 + Math.random() * 60;
   el.style.left = `${randomLeft}%`;
-  
+
   reactionsContainer.appendChild(el);
   setTimeout(() => {
     if (el && el.parentNode) {
@@ -158,16 +158,21 @@ let toastDismissTimer = null;
 
 function updateChatUIState() {
   if (!chatPanel) return;
+  const appWrapper = document.querySelector('.app-wrapper');
   if (isChatOpen) {
     chatPanel.classList.remove('minimized');
+    if (chatToggleBtn) chatToggleBtn.classList.add('active');
+    if (appWrapper) appWrapper.classList.add('chat-active');
     chatUnreadCount = 0;
     updateUnreadBadge();
     hideChatToast();
     if (chatInput && !chatInput.disabled) {
-      setTimeout(() => chatInput.focus(), 80);
+      setTimeout(() => chatInput.focus(), 100);
     }
   } else {
     chatPanel.classList.add('minimized');
+    if (chatToggleBtn) chatToggleBtn.classList.remove('active');
+    if (appWrapper) appWrapper.classList.remove('chat-active');
   }
 }
 
@@ -281,6 +286,8 @@ function setupChatForNewPartner() {
   if (chatSendBtn) chatSendBtn.disabled = false;
 
   addChatMessage('system', 'Connected with stranger! Say hi 👋');
+  // Keep chat minimized on mobile so video is 100% visible, open on large desktop
+  isChatOpen = window.innerWidth >= 1024;
   updateChatUIState();
 }
 
@@ -326,6 +333,15 @@ if (closeChatBtn) {
     updateChatUIState();
   });
 }
+
+// Tap outside chat panel on mobile to dismiss drawer
+document.addEventListener('pointerdown', (e) => {
+  if (!isChatOpen || window.innerWidth >= 768) return;
+  if (chatPanel && !chatPanel.contains(e.target) && chatToggleBtn && !chatToggleBtn.contains(e.target)) {
+    isChatOpen = false;
+    updateChatUIState();
+  }
+});
 
 if (clearChatBtn) {
   clearChatBtn.addEventListener('click', () => {
@@ -680,17 +696,19 @@ function clearNextCooldown() {
     const keyHint = nextBtn.querySelector('.key-hint');
     if (wordMain) wordMain.textContent = 'Next';
     if (wordSub) wordSub.textContent = ' Partner';
-    if (keyHint) keyHint.style.display = 'inline-block';
+    if (keyHint) {
+      keyHint.style.display = window.innerWidth >= 768 ? 'inline-block' : 'none';
+    }
   }
 }
 
 // Prime Audio Playback on User Interaction
 function primeAudioContext() {
   if (remoteAudio) {
-    remoteAudio.play().catch(() => {});
+    remoteAudio.play().catch(() => { });
   }
   if (remoteVideo) {
-    remoteVideo.play().catch(() => {});
+    remoteVideo.play().catch(() => { });
   }
 }
 
@@ -1054,7 +1072,7 @@ async function setupPeerConnection(partnerId, isInitiator) {
       stream.getTracks().forEach((track) => {
         try {
           peerConnection.addTrack(track, stream);
-        } catch (_) {}
+        } catch (_) { }
       });
     }
   }
@@ -1120,13 +1138,13 @@ function cleanupPeerConnection() {
     peerConnection.onconnectionstatechange = null;
     try {
       peerConnection.close();
-    } catch (_) {}
+    } catch (_) { }
     peerConnection = null;
   }
 
   if (remoteStream) {
     remoteStream.getTracks().forEach((t) => {
-      try { t.stop(); } catch (_) {}
+      try { t.stop(); } catch (_) { }
     });
     remoteStream = null;
   }
@@ -1187,15 +1205,15 @@ camBtn.addEventListener('click', async () => {
 });
 
 // PWA Service Worker & Install Prompt Logic
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
-      console.log('[PWA] Liveza ServiceWorker registered:', reg.scope);
-    }).catch((err) => {
-      console.error('[PWA] ServiceWorker error:', err);
-    });
-  });
-}
+// if ('serviceWorker' in navigator) {
+//   window.addEventListener('load', () => {
+//     navigator.serviceWorker.register('/sw.js').then((reg) => {
+//       console.log('[PWA] Liveza ServiceWorker registered:', reg.scope);
+//     }).catch((err) => {
+//       console.error('[PWA] ServiceWorker error:', err);
+//     });
+//   });
+// }
 
 let deferredPrompt = null;
 const installBtn = document.getElementById('installBtn');
@@ -1249,7 +1267,7 @@ function enableDraggablePiP(cardEl, containerEl) {
 
     try {
       cardEl.setPointerCapture(e.pointerId);
-    } catch (_) {}
+    } catch (_) { }
     e.preventDefault();
   }
 
@@ -1281,7 +1299,7 @@ function enableDraggablePiP(cardEl, containerEl) {
     cardEl.classList.remove('is-dragging');
     try {
       cardEl.releasePointerCapture(e.pointerId);
-    } catch (_) {}
+    } catch (_) { }
   }
 
   cardEl.addEventListener('pointerdown', onPointerDown);
@@ -1330,4 +1348,138 @@ window.addEventListener('keydown', (e) => {
     if (chatToggleBtn) chatToggleBtn.click();
   }
 });
+
+// ============================================================
+// Single Tab Enforcement Manager (One Active Tab Only)
+// ============================================================
+const CURRENT_TAB_ID = 'liveza_tab_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+const TAB_CHANNEL_NAME = 'liveza_single_tab_channel';
+const STORAGE_TAB_KEY = 'liveza_active_tab_id';
+const duplicateTabModal = document.getElementById('duplicateTabModal');
+const claimTabBtn = document.getElementById('claimTabBtn');
+
+let isCurrentTabActive = true;
+let tabBroadcastChannel = null;
+
+if (typeof BroadcastChannel !== 'undefined') {
+  try {
+    tabBroadcastChannel = new BroadcastChannel(TAB_CHANNEL_NAME);
+  } catch (err) {
+    console.warn('[Tab Manager] BroadcastChannel error:', err);
+  }
+}
+
+function claimActiveTab() {
+  isCurrentTabActive = true;
+  try {
+    localStorage.setItem(STORAGE_TAB_KEY, CURRENT_TAB_ID);
+  } catch (_) { }
+
+  if (tabBroadcastChannel) {
+    try {
+      tabBroadcastChannel.postMessage({
+        type: 'TAB_CLAIMED',
+        tabId: CURRENT_TAB_ID,
+        timestamp: Date.now()
+      });
+    } catch (_) { }
+  }
+}
+
+function deactivateCurrentTab() {
+  if (!isCurrentTabActive) return;
+  isCurrentTabActive = false;
+  console.log('[Tab Manager] Another tab opened. Deactivating this tab.');
+
+  // 1. Leave any active partner room
+  if (socket && socket.connected) {
+    try {
+      socket.emit('nextPartner');
+      socket.disconnect();
+    } catch (_) { }
+  }
+
+  // 2. Stop camera & mic hardware tracks so the new tab can access the webcam
+  if (localStream) {
+    localStream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch (_) { }
+    });
+    localStream = null;
+  }
+
+  if (localVideo) {
+    localVideo.srcObject = null;
+  }
+
+  // 3. Clean up WebRTC peer connections
+  cleanupPeerConnection();
+
+  // 4. Update UI to paused state & display modal
+  setStatus('idle', 'Paused in another tab');
+  if (startBtn) startBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
+
+  if (duplicateTabModal) {
+    duplicateTabModal.style.display = 'flex';
+  }
+}
+
+function reactivateCurrentTab() {
+  console.log('[Tab Manager] Reclaiming active session in this tab.');
+  if (duplicateTabModal) {
+    duplicateTabModal.style.display = 'none';
+  }
+
+  // Claim active status and notify any other tab
+  claimActiveTab();
+
+  // Reconnect socket
+  if (socket && socket.disconnected) {
+    socket.connect();
+  }
+
+  setStatus('idle', 'Ready');
+  if (startBtn) startBtn.disabled = false;
+  if (nextBtn) nextBtn.disabled = true;
+
+  // Re-acquire camera & microphone
+  initLocalMedia({ isUserAction: true });
+}
+
+// 1. Listen for messages via BroadcastChannel
+if (tabBroadcastChannel) {
+  tabBroadcastChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'TAB_CLAIMED' && event.data.tabId !== CURRENT_TAB_ID) {
+      deactivateCurrentTab();
+    }
+  };
+}
+
+// 2. Listen for cross-tab events via localStorage fallback
+window.addEventListener('storage', (event) => {
+  if (event.key === STORAGE_TAB_KEY && event.newValue && event.newValue !== CURRENT_TAB_ID) {
+    deactivateCurrentTab();
+  }
+});
+
+// 3. Clean up on page unload
+window.addEventListener('beforeunload', () => {
+  try {
+    if (localStorage.getItem(STORAGE_TAB_KEY) === CURRENT_TAB_ID) {
+      localStorage.removeItem(STORAGE_TAB_KEY);
+    }
+  } catch (_) { }
+});
+
+// 4. Handle "Use Here" button click
+if (claimTabBtn) {
+  claimTabBtn.addEventListener('click', () => {
+    reactivateCurrentTab();
+  });
+}
+
+// Claim active session when this tab loads
+claimActiveTab();
 
