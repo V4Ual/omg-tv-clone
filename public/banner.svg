@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <!-- Background Moody Warm Gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0808" />
+      <stop offset="50%" stop-color="#120c0c" />
+      <stop offset="100%" stop-color="#080708" />
+    </linearGradient>
+
+    <!-- Warm Vignette / Amber Glow (matching reference background) -->
+    <radialGradient id="warmAmbient" cx="80%" cy="80%" r="65%">
+      <stop offset="0%" stop-color="#78350f" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#451a03" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="topAmbient" cx="20%" cy="20%" r="55%">
+      <stop offset="0%" stop-color="#581c1c" stop-opacity="0.22" />
+      <stop offset="60%" stop-color="#2a0f0f" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Soft glow for icon -->
+    <filter id="whiteGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <linearGradient id="cardBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.04" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Ambient Warm Atmosphere -->
+  <circle cx="950" cy="500" r="500" fill="url(#warmAmbient)" />
+  <circle cx="200" cy="150" r="400" fill="url(#topAmbient)" />
+
+  <!-- Outer Glass Frame -->
+  <rect x="50" y="45" width="1100" height="540" rx="28" fill="#0c0b0f" fill-opacity="0.65" stroke="url(#cardBorder)" stroke-width="1.2" />
+
+  <!-- Center Circle Icon (Exact replica of user's reference) -->
+  <g transform="translate(600, 190)">
+    <!-- Black Circle Background -->
+    <circle cx="0" cy="0" r="70" fill="#000000" stroke="#2a2a30" stroke-width="2.5" />
+    
+    <!-- White Outline Hollow Lightning Bolt -->
+    <g filter="url(#whiteGlow)">
+      <path d="M5 -45 L-30 6 H3 L1 45 L36 -2 H5 Z" 
+            fill="none" 
+            stroke="#ffffff" 
+            stroke-width="7.5" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+    </g>
+  </g>
+
+  <!-- Main Headline -->
+  <text x="600" y="340" text-anchor="middle" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Outfit', sans-serif" font-weight="900" font-size="62" letter-spacing="-1">
+    Liveza.fun
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="390" text-anchor="middle" fill="#d4d4d8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="500" font-size="24" letter-spacing="0.5">
+    Instant Live 1-on-1 Random Video Chat
+  </text>
+
+  <!-- Description -->
+  <text x="600" y="428" text-anchor="middle" fill="#a1a1aa" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="400" font-size="18">
+    Connect with real people worldwide • Zero Latency WebRTC • Free &amp; Secure
+  </text>
+
+  <!-- Feature Badges Row -->
+  <g transform="translate(250, 475)">
+    <g transform="translate(0, 0)">
+      <rect width="160" height="40" rx="12" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+      <text x="80" y="25" text-anchor="middle" fill="#fafafa" font-family="sans-serif" font-weight="600" font-size="14">⚡ Ultra HD Video</text>
+    </g>
+    <g transform="translate(180, 0)">
+      <rect width="170" height="40" rx="12" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+      <text x="85" y="25" text-anchor="middle" fill="#fafafa" font-family="sans-serif" font-weight="600" font-size="14">🔒 Safe &amp; Anonymous</text>
+    </g>
+    <g transform="translate(370, 0)">
+      <rect width="160" height="40" rx="12" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+      <text x="80" y="25" text-anchor="middle" fill="#fafafa" font-family="sans-serif" font-weight="600" font-size="14">🌍 Global Matching</text>
+    </g>
+    <g transform="translate(550, 0)">
+      <rect width="150" height="40" rx="12" fill="#18181b" stroke="#3f3f46" stroke-width="1" />
+      <text x="75" y="25" text-anchor="middle" fill="#fafafa" font-family="sans-serif" font-weight="600" font-size="14">✨ 100% Free</text>
+    </g>
+  </g>
+</svg>

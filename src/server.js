@@ -17,6 +17,43 @@ app.use((req, res, next) => {
   next();
 });
 
+const fs = require('fs');
+
+// Ensure image assets exist in public folder
+try {
+  const publicDir = path.join(__dirname, '../public');
+  const brainDir = 'C:\\Users\\SHANI SUTHAR\\.gemini\\antigravity-ide\\brain\\5e9e71a4-d4d2-44f9-b0c0-d2ddb5bd95e2';
+  const ogSource = path.join(brainDir, 'liveza_og_banner_1789911873257.jpg');
+  const iconSource = path.join(brainDir, 'liveza_app_icon_1789911898063.jpg');
+
+  if (fs.existsSync(ogSource)) {
+    if (!fs.existsSync(path.join(publicDir, 'og-image.jpg'))) fs.copyFileSync(ogSource, path.join(publicDir, 'og-image.jpg'));
+    if (!fs.existsSync(path.join(publicDir, 'banner.png'))) fs.copyFileSync(ogSource, path.join(publicDir, 'banner.png'));
+  }
+  if (fs.existsSync(iconSource)) {
+    if (!fs.existsSync(path.join(publicDir, 'apple-touch-icon.png'))) fs.copyFileSync(iconSource, path.join(publicDir, 'apple-touch-icon.png'));
+    if (!fs.existsSync(path.join(publicDir, 'icon-512.png'))) fs.copyFileSync(iconSource, path.join(publicDir, 'icon-512.png'));
+    if (!fs.existsSync(path.join(publicDir, 'icon-192.png'))) fs.copyFileSync(iconSource, path.join(publicDir, 'icon-192.png'));
+    if (!fs.existsSync(path.join(publicDir, 'favicon.ico'))) fs.copyFileSync(iconSource, path.join(publicDir, 'favicon.ico'));
+    if (!fs.existsSync(path.join(publicDir, 'favicon.png'))) fs.copyFileSync(iconSource, path.join(publicDir, 'favicon.png'));
+  }
+} catch (err) {
+  // Silent fallback to vector SVG assets
+}
+
+// Handlers for social preview banner and app icons matching new design
+app.get(['/favicon.ico', '/favicon.png', '/favicon.svg', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png'], (req, res) => {
+  const svgPath = path.join(__dirname, '../public/favicon.svg');
+  if (fs.existsSync(svgPath)) return res.type('image/svg+xml').sendFile(svgPath);
+  res.status(404).end();
+});
+
+app.get(['/banner.png', '/banner.jpg', '/og-image.jpg', '/banner.svg'], (req, res) => {
+  const svgPath = path.join(__dirname, '../public/banner.svg');
+  if (fs.existsSync(svgPath)) return res.type('image/svg+xml').sendFile(svgPath);
+  res.status(404).end();
+});
+
 // Serve static web app assets
 app.use(express.static(path.join(__dirname, '../public')));
 

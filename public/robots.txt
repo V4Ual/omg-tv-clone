@@ -1,0 +1,6 @@
+# robots.txt for Liveza.fun
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://liveza.fun/sitemap.xml
